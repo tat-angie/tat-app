@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>TAT · Todo al mismo tiempo</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --purple:#5B2D8E;--pl:#7B4DB8;--pp:#EDE5F8;--pg:#F5F3FF;--bg:#F0EDF8;
+  --yellow:#E8B800;--yl:#FFF8D6;--yd:#C99F00;
+  --green:#27AE60;--gl:#E8F8EF;--orange:#E86B00;--ol:#FFF0E0;
+  --blue:#2980B9;--bl:#E8F4FD;--red:#E74C3C;--white:#FFFFFF;
+  --g50:#FAFAFA;--g100:#F4F4F6;--g200:#E8E8EC;--g300:#D0D0D8;--g400:#B0B0C0;--g500:#9090A0;--g700:#555565;--g900:#1A1A2E;
+  --r-sm:8px;--r-md:14px;--r-lg:18px;--r-xl:26px;--r-f:9999px;
+  --sh-s:0 2px 8px rgba(91,45,142,.07);--sh-m:0 4px 20px rgba(91,45,142,.13);--sh-l:0 8px 40px rgba(91,45,142,.18);
+  --font:'Nunito',sans-serif;--nh:64px;
+  --sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);
+  --csol:#C99F00;--crrss:#27AE60;--conco:#E86B00;--cag:#2980B9;--cmix:#C0396A;--ctat:#5B2D8E;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);background:#ccc4e8;color:var(--g900);-webkit-font-smoothing:antialiased;overflow:hidden}
+body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg);box-shadow:0 0 80px rgba(0,0,0,.25)}
+button{font-family:var(--font);cursor:pointer;border:none;background:none}
+input,textarea{font-family:var(--font)}
+#app{flex:1;display:flex;flex-direction:column;overflow:hidden;padding-top:var(--st)}
+.view{display:none;flex:1;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nh) + var(--sb) + 8px);animation:fadeUp .22s cubic-bezier(.22,.68,0,1.2)}
+.view.active{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 9px;background:var(--bg);flex-shrink:0;position:sticky;top:0;z-index:50}
+.tlogo{font-size:21px;font-weight:900;color:var(--purple);letter-spacing:-1px;display:flex;align-items:center}
+.tlogo .plus{color:var(--yd);font-size:19px;margin-left:2px}
+.tright{display:flex;align-items:center;gap:5px}
+.date-b{font-size:10px;font-weight:700;color:var(--g400);padding:4px 9px;background:var(--white);border-radius:var(--r-f);box-shadow:var(--sh-s)}
+
+/* MOOD ROW in topbar - solo emojis, selected+faded */
+.mood-row{display:flex;align-items:center;gap:2px;background:var(--white);border-radius:var(--r-f);padding:4px 8px;box-shadow:var(--sh-s)}
+.meb{font-size:18px;cursor:pointer;transition:opacity .2s,transform .2s;border:none;background:none;padding:0 2px;line-height:1}
+.meb.sel{opacity:1;transform:scale(1.18)}
+.meb.fad{opacity:.2;filter:grayscale(.5)}
+.meb.fad:active{opacity:.6}
+
+/* NAV */
+#bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;height:calc(var(--nh) + var(--sb));padding-bottom:var(--sb);background:var(--white);border-top:1px solid var(--g200);display:flex;z-index:100;box-shadow:0 -2px 16px rgba(91,45,142,.06)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding-top:6px;font-size:9px;font-weight:800;color:var(--g400);letter-spacing:.3px;text-transform:uppercase;cursor:pointer;transition:color .15s;position:relative}
+.ni .nico{font-size:20px;transition:transform .18s cubic-bezier(.22,.68,0,1.4)}
+.ni.active{color:var(--purple)}.ni.active .nico{transform:scale(1.1)}
+.ni.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:24px;height:3px;background:var(--purple);border-radius:0 0 3px 3px}
+.ni.nf .nfw{width:auto;height:auto;background:none;border-radius:0;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:none;margin-top:0;transition:transform .18s}
+.ni.nf.active .nfw{background:none;transform:scale(1.1)}
+.ni.nf.active::before{display:block}
+.ni.nf .nfl{font-size:9px;font-weight:800}.ni.nf.active .nfl{color:var(--purple)}
+
+/* COMMON */
+.card{background:var(--white);border-radius:var(--r-lg);padding:14px;box-shadow:var(--sh-s);margin:0 13px 9px}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:13px 20px;border-radius:var(--r-f);font-size:14px;font-weight:800;transition:transform .12s}
+.btn:active{transform:scale(.97)}
+.btn-p{background:var(--purple);color:var(--white);box-shadow:0 4px 16px rgba(91,45,142,.35)}
+.btn-o{background:var(--white);color:var(--g700);border:1.5px solid var(--g200);box-shadow:var(--sh-s)}
+.btn-f{width:100%}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--r-f);font-size:10px;font-weight:800;background:var(--g100);color:var(--g700)}
+.pbar{width:100%;height:5px;background:var(--g100);border-radius:var(--r-f);overflow:hidden}
+.pbf{height:100%;border-radius:var(--r-f);transition:width .4s}
+.icon-btn{width:34px;height:34px;border-radius:var(--r-f);display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--white);box-shadow:var(--sh-s)}
+.toggle{width:42px;height:24px;background:var(--g300);border-radius:var(--r-f);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--purple)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:var(--r-f);box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .2s cubic-bezier(.22,.68,0,1.4)}
+.toggle.on::after{transform:translateX(18px)}
+
+/* SHEETS */
+.sov{display:none;position:fixed;inset:0;background:rgba(20,10,40,.45);z-index:200;backdrop-filter:blur(4px)}
+.sov.open{display:block}
+.sheet{position:fixed;left:50%;transform:translateX(-50%) translateY(105%);width:100%;max-width:430px;background:var(--white);border-radius:26px 26px 0 0;z-index:201;bottom:0;padding-bottom:calc(var(--sb)+18px);transition:transform .34s cubic-bezier(.22,.68,0,1.1);box-shadow:0 -8px 48px rgba(91,45,142,.2);overflow-y:auto}
+.sheet.open{transform:translateX(-50%) translateY(0)}
+.shtop{position:fixed;left:50%;transform:translateX(-50%) translateY(-105%);width:100%;max-width:430px;background:var(--white);border-radius:0 0 26px 26px;z-index:201;top:var(--st);padding-top:6px;transition:transform .34s cubic-bezier(.22,.68,0,1.1);box-shadow:0 8px 48px rgba(91,45,142,.2);overflow-y:auto}
+.shtop.open{transform:translateX(-50%) translateY(0)}
+.shh{width:32px;height:4px;background:var(--g200);border-radius:2px;margin:9px auto 12px}
+
+/* SOCIAL BUBBLE */
+.sbub{position:fixed;right:13px;bottom:calc(var(--nh) + var(--sb) + 9px);width:46px;height:46px;background:var(--purple);border-radius:var(--r-f);display:none;align-items:center;justify-content:center;font-size:17px;box-shadow:var(--sh-l);cursor:pointer;z-index:90;transition:transform .18s;flex-direction:column;gap:0}
+.sbub:active{transform:scale(.9)}
+.sbub-lbl{font-size:7px;font-weight:900;color:rgba(255,255,255,.8);letter-spacing:.3px;line-height:1}
+
+/* TIP */
+.tip-card{background:linear-gradient(135deg,var(--pp),var(--yl));border-radius:var(--r-lg);padding:11px 13px;margin:0 13px 9px;display:none;align-items:center;gap:9px}
+
+/* ── FOCUS ── */
+.tmcard{background:var(--white);border-radius:var(--r-xl);padding:16px;margin:0 13px 9px;box-shadow:var(--sh-s)}
+.tmb{flex:1;padding:9px 5px;border-radius:var(--r-md);font-size:11px;font-weight:800;background:var(--g100);color:var(--g700);border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px}
+.tmb.active{background:var(--purple);color:white;box-shadow:0 3px 12px rgba(91,45,142,.35)}
+.trw{flex-shrink:0;position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center}
+.trw svg{position:absolute;top:0;left:0}
+.trw circle{fill:none;stroke-width:7;stroke-linecap:round}
+.tr-track{stroke:var(--pp)}
+.tr-fill{stroke:var(--purple);stroke-dasharray:232;stroke-dashoffset:0;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1s linear}
+.tdisp{position:relative;z-index:1;text-align:center}
+.ttime{font-size:21px;font-weight:900;color:var(--g900);letter-spacing:-1px;line-height:1}
+.tsub{font-size:9px;font-weight:700;color:var(--g500);margin-top:2px}
+/* time picker */
+.tpick{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0 4px}
+.tpcol{display:flex;flex-direction:column;align-items:center;gap:4px}
+.tplbl{font-size:9px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px}
+.tpval{font-size:28px;font-weight:900;color:var(--g900);letter-spacing:-1px;min-width:52px;text-align:center}
+.tpbtn{width:30px;height:30px;border-radius:var(--r-f);background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;border:none}
+.tpbtn:active{background:var(--pp)}
+/* mood strip in focus */
+.mstrip{background:var(--white);border-radius:var(--r-lg);margin:0 13px 9px;padding:13px 14px;box-shadow:var(--sh-s);display:flex;align-items:flex-start;gap:12px}
+.mstrip-em{font-size:30px;flex-shrink:0;margin-top:2px}
+.mstrip-title{font-size:13px;font-weight:900}
+.mstrip-desc{font-size:11px;font-weight:600;color:var(--g700);margin-top:3px;line-height:1.4}
+.mstrip-btn{display:inline-block;padding:6px 12px;border-radius:var(--r-f);font-size:11px;font-weight:800;border:2px solid currentColor;background:transparent;cursor:pointer;margin-top:8px}
+/* hyper banner */
+.hbanner{background:linear-gradient(90deg,var(--yellow),#FFD600);border-radius:var(--r-md);margin:0 13px 9px;padding:10px 14px;display:none;align-items:center;gap:9px}
+.hbanner.on{display:flex}
+/* project rows */
+.prow{background:var(--white);border-radius:var(--r-lg);margin:0 13px 7px;display:flex;align-items:center;gap:11px;padding:11px 13px;box-shadow:var(--sh-s);cursor:pointer}
+.pthumb{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.pinfo{flex:1;min-width:0}
+.pname{font-size:14px;font-weight:900;color:var(--g900)}
+.pmeta{font-size:10px;font-weight:700;color:var(--g400);margin-top:1px}
+.pgo{width:36px;height:36px;border-radius:var(--r-sm);background:var(--g100);font-size:11px;font-weight:800;color:var(--g700);display:flex;align-items:center;justify-content:center;flex-shrink:0;white-space:nowrap;padding:0 8px;width:auto}
+.qib{background:var(--white);border-radius:var(--r-lg);margin:0 13px 9px;padding:13px;display:flex;align-items:center;gap:11px;box-shadow:var(--sh-s);cursor:pointer}
+.qib:active{background:var(--pg)}
+.qib-plus{width:34px;height:34px;border-radius:var(--r-sm);background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;color:var(--g900);flex-shrink:0}
+
+/* ── TAREAS ── */
+.ptabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:8px 13px 0}
+.ptabs::-webkit-scrollbar{display:none}
+.ptab{display:flex;align-items:center;gap:4px;padding:7px 12px;border-radius:var(--r-f);font-size:11px;font-weight:800;color:var(--g500);white-space:nowrap;cursor:pointer;transition:all .15s;flex-shrink:0;margin-right:5px;border:1.5px solid var(--g200);background:var(--white)}
+.ptab.active{color:var(--purple);background:var(--pp);border-color:var(--pp);box-shadow:none}
+.ptbadge{border-radius:var(--r-f);padding:1px 6px;font-size:9px;font-weight:900;background:rgba(91,45,142,.15);color:var(--purple)}
+.ptab:not(.active) .ptbadge{background:var(--g100);color:var(--g500)}
+/* mood suggest strip in tasks */
+.msug{border-radius:var(--r-lg);margin:9px 13px 0;padding:13px 14px;display:flex;align-items:flex-start;gap:11px}
+.msug-em{font-size:28px;flex-shrink:0}
+.msug-body{flex:1}
+.msug-title{font-size:13px;font-weight:900}
+.msug-desc{font-size:11px;font-weight:600;color:var(--g700);margin-top:3px;line-height:1.4}
+.msug-btn{display:inline-block;padding:6px 12px;border-radius:var(--r-f);font-size:11px;font-weight:800;border:2px solid currentColor;background:transparent;cursor:pointer;margin-top:8px}
+/* task section label */
+.tslbl{font-size:9px;font-weight:900;color:var(--g400);letter-spacing:.8px;text-transform:uppercase;padding:12px 13px 5px;display:flex;align-items:center;gap:8px}
+.tslbl .tslact{font-size:10px;font-weight:800;color:var(--purple);background:var(--pp);padding:3px 9px;border-radius:var(--r-f);cursor:pointer;letter-spacing:0;text-transform:none}
+/* task card */
+.tc{background:var(--white);border-radius:var(--r-lg);margin:0 13px 6px;display:flex;align-items:stretch;box-shadow:var(--sh-s);overflow:hidden;transition:box-shadow .12s}
+.tc:active{box-shadow:var(--sh-m)}
+.tc-acc{width:4px;flex-shrink:0}
+.tc-th{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin:11px 0 11px 11px}
+.tc-body{flex:1;padding:11px 8px 11px 10px;min-width:0}
+.tc-name{font-size:13px;font-weight:900;color:var(--g900);line-height:1.3}
+.tc-name.done{text-decoration:line-through;color:var(--g400)}
+.tc-meta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+.tc-proj{font-size:10px;font-weight:800;display:flex;align-items:center;gap:3px}
+.tc-time{font-size:10px;font-weight:700;color:var(--g400)}
+.tc-imp{font-size:10px;font-weight:800;color:var(--yd);background:var(--yl);padding:2px 7px;border-radius:var(--r-f)}
+.tc-done-date{font-size:9px;font-weight:700;color:var(--g400);margin-top:3px}
+.tc-acts{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 10px 8px 4px;flex-shrink:0}
+.tc-cb{width:20px;height:20px;border-radius:6px;border:2px solid var(--g300);display:flex;align-items:center;justify-content:center;transition:all .15s;cursor:pointer;flex-shrink:0}
+.tc-cb.done{background:var(--purple);border-color:var(--purple);color:white;font-size:11px}
+.tc-play{width:30px;height:30px;border-radius:var(--r-sm);background:var(--pg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--purple);cursor:pointer;border:none;transition:background .12s;flex-shrink:0}
+.tc-play:active{background:var(--pp)}
+/* schedule button variants */
+.tc-sched{width:28px;height:28px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;border:none;transition:all .15s;flex-shrink:0;font-weight:900}
+.tc-sched-in{background:var(--pp);color:var(--purple)}
+.tc-sched-in:active{background:var(--purple);color:white}
+.tc-sched-out{background:var(--g100);color:var(--g400)}
+.tc-sched-out:active{background:#fde8e8;color:var(--red)}
+/* add task dashed */
+.add-tc{background:transparent;border:2px dashed var(--pl);border-radius:var(--r-lg);margin:4px 13px 8px;padding:13px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:background .12s}
+.add-tc:active{background:var(--pg)}
+.add-tc-t{font-size:12px;font-weight:800;color:var(--purple)}
+/* project picker row */
+.proj-pick-row{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:var(--r-md);cursor:pointer;transition:background .12s;margin-bottom:4px}
+.proj-pick-row:active{background:var(--pp)}
+/* emoji picker */
+.emoji-opt{font-size:24px;cursor:pointer;padding:6px 8px;border-radius:var(--r-sm);border:2px solid transparent;transition:all .12s}
+.emoji-opt:active,.emoji-opt.sel-emoji{background:var(--pp);border-color:var(--purple)}
+
+/* ── IDEAS ── */
+.ideas-hdr{padding:13px 13px 7px;flex-shrink:0}
+.ideas-title{font-size:25px;font-weight:900;color:var(--g900);line-height:1.15}
+.ideas-title span{color:var(--yd)}
+.icbadge{background:var(--g100);border-radius:var(--r-f);padding:5px 13px;font-size:11px;font-weight:800;color:var(--g700);display:inline-block;margin-top:3px}
+.npcta{margin:0 13px 9px;background:var(--white);border-radius:var(--r-lg);padding:13px;display:flex;align-items:center;gap:11px;box-shadow:var(--sh-s);cursor:pointer;border:1.5px solid var(--g100)}
+.npcta:active{border-color:var(--purple);background:var(--pg)}
+.npbox{width:36px;height:36px;background:var(--yl);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.iftabs{display:flex;gap:6px;padding:0 13px 9px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.iftabs::-webkit-scrollbar{display:none}
+.iftab{padding:7px 14px;border-radius:var(--r-f);font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.iftab.active{background:var(--purple);color:white;box-shadow:0 2px 10px rgba(91,45,142,.25)}
+.iftab.inactive{background:transparent;color:var(--g500);border:1.5px solid var(--g200)}
+.iftab.inactive:active{background:var(--pg)}
+/* idea card — fiel al mockup */
+.idea-card{background:var(--white);border-radius:var(--r-lg);margin:0 13px 7px;box-shadow:var(--sh-s);overflow:hidden}
+.ic-top{display:flex;align-items:flex-start;padding:13px 13px 3px}
+.ic-title{font-size:13px;font-weight:800;color:var(--g900);flex:1;margin-right:7px;line-height:1.3}
+.ic-star{font-size:16px;cursor:pointer;opacity:.25;transition:opacity .15s,transform .15s;color:var(--yd)}
+.ic-star.starred{opacity:1;transform:scale(1.1)}
+.ic-meta{display:flex;align-items:center;gap:7px;padding:2px 13px 9px;flex-wrap:wrap}
+.ic-date{font-size:10px;font-weight:700;color:var(--g400)}
+.ic-ptag{font-size:10px;font-weight:800;padding:3px 9px;border-radius:var(--r-f);border:1.5px dashed var(--g300);color:var(--g500);cursor:pointer;background:var(--g50)}
+.ic-ptag.asgn{background:var(--pp);border-style:solid;border-color:var(--pp);color:var(--purple)}
+.ic-acts{display:flex;border-top:1px solid var(--g100)}
+.iab{flex:1;padding:9px 3px;font-size:10px;font-weight:800;color:var(--g700);background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;border-right:1px solid var(--g100)}
+.iab:last-child{border-right:none}
+.iab:active{background:var(--pg);color:var(--purple)}
+.iab.red:active{background:#fef0f0;color:var(--red)}
+.iab-del{width:26px;height:26px;background:var(--red);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:12px;color:white}
+
+/* ── RESUMEN ── */
+.stblock{text-align:center;padding:11px 5px}
+.stval{font-size:21px;font-weight:900;color:var(--purple)}
+.stlbl{font-size:9px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.cbar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.cbar-lbl{font-size:9px;font-weight:700;color:var(--g400)}
+
+/* ── PERFIL ── */
+.av{width:62px;height:62px;border-radius:var(--r-f);background:linear-gradient(135deg,var(--purple),var(--pl));display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:var(--sh-m)}
+.srow{display:flex;align-items:center;padding:12px 13px;border-bottom:1px solid var(--g100);gap:9px}
+.sico{font-size:16px;width:26px;text-align:center;flex-shrink:0}
+.slbl{flex:1;font-size:13px;font-weight:700;color:var(--g900)}
+.sval{font-size:11px;font-weight:700;color:var(--g400)}
+.sarr{font-size:12px;color:var(--g300)}
+.schip{padding:6px 12px;border-radius:var(--r-f);font-size:10px;font-weight:800;background:var(--g100);color:var(--g700);cursor:pointer;border:2px solid transparent;transition:all .15s}
+.schip.active-sound{background:var(--pp);color:var(--purple);border-color:var(--purple)}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--g200);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--purple);box-shadow:0 2px 8px rgba(91,45,142,.3);cursor:pointer}
+
+/* MOOD SHEET */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 13px 10px}
+.mcard{background:var(--pg);border-radius:var(--r-lg);padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;border:2.5px solid transparent;transition:all .15s}
+.mcard:active,.mcard.sel{border-color:var(--purple);background:var(--pp)}
+.mcard-em{font-size:34px}
+.mcard-name{font-size:13px;font-weight:900;text-align:center}
+.mcard-desc{font-size:10px;font-weight:600;color:var(--g500);text-align:center}
+.mcard.on-fire .mcard-name{color:var(--orange)}
+.mcard.normal .mcard-name{color:var(--green)}
+.mcard.dispersa .mcard-name{color:#8B6AB5}
+.mcard.low .mcard-name{color:var(--blue)}
+/* task star btn */
+.tc-star{background:none;border:none;font-size:14px;cursor:pointer;padding:0 2px;color:var(--yd);opacity:.35;transition:opacity .15s,transform .15s;line-height:1}
+.tc-star.starred{opacity:1;transform:scale(1.15)}
+/* done opt */
+.dopt{display:flex;align-items:center;gap:11px;padding:13px;margin:0 11px 7px;border-radius:var(--r-lg);border:2px solid var(--g200);cursor:pointer;transition:border-color .15s,background .12s;font-size:22px}
+.dopt:active{border-color:var(--purple);background:var(--pg)}
+
+/* TIME PICKER SHEET */
+.tpsheet-dial{display:flex;align-items:center;justify-content:center;gap:6px;padding:16px 0 8px}
+.tpd-col{display:flex;flex-direction:column;align-items:center;gap:6px}
+.tpd-lbl{font-size:9px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px}
+.tpd-val{font-size:38px;font-weight:900;color:var(--g900);letter-spacing:-2px;min-width:70px;text-align:center;background:var(--g100);border-radius:var(--r-md);padding:8px 0}
+.tpd-btn{width:36px;height:36px;border-radius:var(--r-f);background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:none;font-weight:900;color:var(--g700)}
+.tpd-btn:active{background:var(--pp);color:var(--purple)}
+.tpd-sep{font-size:32px;font-weight:900;color:var(--g300);margin-top:28px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tlogo">Tat <span class="plus">+</span></div>
+  <div class="tright">
+    <!-- Mood icons row — selected full, others faded -->
+    <div class="mood-row" id="mood-row">
+      <button class="meb sel" data-mood="on-fire" onclick="moodClick(this)">🔥</button>
+      <button class="meb fad" data-mood="normal" onclick="moodClick(this)">🙂</button>
+      <button class="meb fad" data-mood="dispersa" onclick="moodClick(this)">😶‍🌫️</button>
+      <button class="meb fad" data-mood="low" onclick="moodClick(this)">🪫</button>
+    </div>
+    <div class="date-b" id="date-b">Dom 5 abr</div>
+  </div>
+</header>
+
+<!-- ══ FOCUS ══ -->
+<section class="view active" id="view-focus">
+  <!-- Mood strip — hidden until mood chosen -->
+  <div class="mstrip" id="mstrip" style="background:var(--ol);display:none">
+    <div class="mstrip-em" id="ms-em">🔥</div>
+    <div style="flex:1">
+      <div class="mstrip-title" id="ms-title" style="color:var(--orange)">¡Estás On fire!</div>
+      <div class="mstrip-desc" id="ms-desc">Aprovecha la energía — elige una tarea desafiante.</div>
+      <button class="mstrip-btn" id="ms-btn" style="color:var(--orange);border-color:var(--orange)" onclick="openMoodSheet()">+ Modo energía alta</button>
+    </div>
+  </div>
+  <!-- Hyper banner -->
+  <div class="hbanner" id="hbanner">
+    <span style="font-size:20px">⚡</span>
+    <div style="font-size:12px;font-weight:800;color:var(--g900);flex:1">Modo Hiperfoco activo — fluye 🌊</div>
+    <div style="font-size:11px;font-weight:800;color:var(--g700);cursor:pointer;padding:4px 10px;background:rgba(255,255,255,.5);border-radius:var(--r-f)" onclick="toggleHyper()">Salir</div>
+  </div>
+  <!-- Timer card -->
+  <div class="tmcard">
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      <button class="tmb active" onclick="setMode('pomodoro',this)">🍅 Pomodoro</button>
+      <button class="tmb" onclick="setMode('libre',this)">⏱ Mi tiempo</button>
+      <button class="tmb" onclick="setMode('abierta',this)">🔄 Sin timer</button>
+    </div>
+    <!-- Inline time picker (Mi tiempo) -->
+    <div class="tpick" id="tpick" style="display:none">
+      <div class="tpcol">
+        <button class="tpbtn" onclick="adjT('h',1)">▲</button>
+        <div class="tplbl">Horas</div>
+        <div class="tpval" id="tp-h">0</div>
+        <button class="tpbtn" onclick="adjT('h',-1)">▼</button>
+      </div>
+      <div style="font-size:24px;font-weight:900;color:var(--g300);margin-top:18px">:</div>
+      <div class="tpcol">
+        <button class="tpbtn" onclick="adjT('m',5)">▲</button>
+        <div class="tplbl">Min</div>
+        <div class="tpval" id="tp-m">45</div>
+        <button class="tpbtn" onclick="adjT('m',-5)">▼</button>
+      </div>
+      <div style="margin-top:22px;margin-left:8px">
+        <button class="btn btn-p" style="padding:9px 14px;font-size:12px" onclick="applyT()">OK ✓</button>
+      </div>
+    </div>
+    <!-- Timer body -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:13px">
+      <div class="trw">
+        <svg width="86" height="86" viewBox="0 0 86 86">
+          <circle class="tr-track" cx="43" cy="43" r="37"/>
+          <circle class="tr-fill" id="trf" cx="43" cy="43" r="37" stroke-dasharray="232" stroke-dashoffset="0"/>
+        </svg>
+        <div class="tdisp">
+          <div class="ttime" id="tdisp">25:00</div>
+          <div class="tsub" id="tsubl">trabajo</div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div style="display:flex;gap:5px;margin-bottom:7px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--purple)"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--g200)"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--g200)"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--g200)"></div>
+        </div>
+        <div style="font-size:14px;font-weight:800;color:var(--g900);margin-bottom:3px" id="atask-name">Elige una tarea ↓</div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:10px;font-weight:800;color:var(--purple)" id="atask-proj">● Proyecto</span>
+          <span style="font-size:10px;font-weight:700;color:var(--g400)" id="atask-dur">⏱ –</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button style="flex:1;background:var(--purple);color:white;border-radius:var(--r-md);padding:13px;font-size:14px;font-weight:900;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.5px;box-shadow:0 4px 16px rgba(91,45,142,.35);transition:transform .12s" id="sbtn" onclick="toggleTimer()">
+        <span id="sico">▶</span><span id="slbl">INICIAR</span>
+      </button>
+      <button style="width:46px;height:46px;border-radius:var(--r-md);background:var(--g100);border:none;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" onclick="resetTimer()" title="Reiniciar">↺</button>
+      <button style="width:46px;height:46px;border-radius:var(--r-md);background:var(--yl);border:none;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" id="hbtn" onclick="toggleHyper()" title="Hiperfoco — Pico de creatividad">⚡</button>
+    </div>
+  </div>
+  <!-- Projects -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 13px 5px">
+    <div style="font-size:9px;font-weight:900;color:var(--g400);letter-spacing:1px;text-transform:uppercase">Proyectos activos</div>
+    <button style="font-size:11px;font-weight:800;color:var(--purple)">+ Agregar</button>
+  </div>
+  <div class="prow" onclick="goProj('solsticio')">
+    <div class="pthumb" style="background:var(--yl)">☕</div>
+    <div class="pinfo">
+      <div class="pname">Solsticio</div>
+      <div class="pmeta">5/15 tareas · Próx: Pagar Vuce · <span style="color:var(--csol)">~45 min</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:33%;background:var(--csol)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="prow" onclick="goProj('rrss')">
+    <div class="pthumb" style="background:var(--gl)">💁🏽‍♀️</div>
+    <div class="pinfo">
+      <div class="pname">RRSS Wellness</div>
+      <div class="pmeta">2/10 tareas · Próx: Escoger fotos · <span style="color:var(--crrss)">~30 min</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:20%;background:var(--crrss)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="prow" onclick="goProj('onco')">
+    <div class="pthumb" style="background:var(--ol)">🌻</div>
+    <div class="pinfo">
+      <div class="pname">OncoTrack</div>
+      <div class="pmeta">7/10 tareas · Próx: Revisar datos · <span style="color:var(--conco)">~45 min</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:70%;background:var(--conco)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="prow" onclick="goProj('agencia')">
+    <div class="pthumb" style="background:var(--bl)">🚀</div>
+    <div class="pinfo">
+      <div class="pname">Agencia</div>
+      <div class="pmeta">1/5 tareas · Próx: Brief Q2 · <span style="color:var(--cag)">~1h</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:20%;background:var(--cag)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="prow" onclick="goProj('mix')">
+    <div class="pthumb" style="background:#fce4ec">✨</div>
+    <div class="pinfo">
+      <div class="pname">Mix</div>
+      <div class="pmeta">3/8 tareas · Próx: Playlist promo · <span style="color:var(--cmix)">~20 min</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:37%;background:var(--cmix)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="prow" onclick="goProj('tat')">
+    <div class="pthumb" style="background:var(--pp)">💜</div>
+    <div class="pinfo">
+      <div class="pname">TAT</div>
+      <div class="pmeta">0/12 tareas · Próx: Timer social · <span style="color:var(--ctat)">~30 min</span></div>
+      <div style="margin-top:5px"><div class="pbar"><div class="pbf" style="width:5%;background:var(--ctat)"></div></div></div>
+    </div>
+    <div class="pgo">→ Ir</div>
+  </div>
+  <div class="qib" onclick="openNotepad()">
+    <div style="font-size:18px">🫧</div>
+    <div style="flex:1;font-size:12px;font-weight:700;color:var(--g400)">¿Se te ocurrió algo? Anótalo ahora →</div>
+    <div class="qib-plus">+</div>
+  </div>
+  <div class="tip-card" id="tip-card">
+    <div id="tip-ico" style="font-size:22px;flex-shrink:0">💧</div>
+    <div id="tip-txt" style="font-size:11px;font-weight:700;color:var(--g700);line-height:1.4;flex:1">Toma tu aguita</div>
+    <div style="font-size:13px;color:var(--g400);cursor:pointer;padding:3px;flex-shrink:0" onclick="this.parentElement.style.display='none'">✕</div>
+  </div>
+</section>
+
+<!-- ══ TAREAS ══ -->
+<section class="view" id="view-tareas">
+  <div style="padding:11px 13px 0">
+    <div class="ptabs" id="ptabs">
+      <div class="ptab active" onclick="switchTab(this,'hoy')">Hoy <span class="ptbadge">6</span></div>
+      <div class="ptab" onclick="switchTab(this,'solsticio')">☕ Solsticio <span class="ptbadge">4</span></div>
+      <div class="ptab" onclick="switchTab(this,'rrss')">💁🏽‍♀️ RRSS <span class="ptbadge">3</span></div>
+      <div class="ptab" onclick="switchTab(this,'onco')">🌻 OncoTrack <span class="ptbadge">3</span></div>
+      <div class="ptab" onclick="switchTab(this,'agencia')">🚀 Agencia</div>
+      <div class="ptab" onclick="switchTab(this,'mix')">✨ Mix</div>
+      <div class="ptab" onclick="switchTab(this,'tat')">💜 TAT</div>
+    </div>
+  </div>
+
+  <!-- Mood suggest — visible ONLY after mood selected, only on Hoy tab -->
+  <div class="msug" id="msug" style="background:var(--ol);display:none">
+    <div class="msug-em" id="msug-em">🔥</div>
+    <div class="msug-body">
+      <div class="msug-title" id="msug-title" style="color:var(--orange)">¡Estás On fire!</div>
+      <div class="msug-desc" id="msug-desc">Tareas desafiantes · aprovecha el pico.</div>
+      <button class="msug-btn" id="msug-btn" style="color:var(--orange);border-color:var(--orange)" onclick="openMoodSheet()">+ Modo energía alta</button>
+    </div>
+  </div>
+
+  <div id="tlist">
+    <!-- HOY section label -->
+    <div class="tslbl" id="today-section-lbl" data-proj="hoy">
+      ✨ Tareas para hoy · sugeridas por IA
+      <span class="tslact" onclick="sortTasks()">↕ Ordenar</span>
+    </div>
+
+    <!-- Tareas Solsticio -->
+    <div class="tc" id="tc-1" data-proj="solsticio" data-today="true">
+      <div class="tc-acc" style="background:var(--csol)"></div>
+      <div class="tc-th" style="background:var(--yl)">☕</div>
+      <div class="tc-body">
+        <div class="tc-name">Ordenar fotos en iCloud</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--csol)">● Solsticio</span>
+          <span class="tc-time">⏱ 30 min</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-1')"></div>
+        <button class="tc-play" onclick="startTask('Ordenar fotos en iCloud','Solsticio','30 min','var(--csol)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-1',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <div class="tc" id="tc-2" data-proj="solsticio" data-today="true">
+      <div class="tc-acc" style="background:var(--csol)"></div>
+      <div class="tc-th" style="background:var(--yl)">☕</div>
+      <div class="tc-body">
+        <div class="tc-name">Pagar Vuce</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--csol)">● Solsticio</span>
+          <span class="tc-time">⏱ 15 min</span>
+          <button class="tc-star starred" onclick="toggleStar(this)" title="Importante">★</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-2')"></div>
+        <button class="tc-play" onclick="startTask('Pagar Vuce','Solsticio','15 min','var(--csol)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-2',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <div class="tc" id="tc-3" data-proj="solsticio" data-today="true">
+      <div class="tc-acc" style="background:var(--csol)"></div>
+      <div class="tc-th" style="background:var(--yl)">☕</div>
+      <div class="tc-body">
+        <div class="tc-name">Armar propuesta de precios</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--csol)">● Solsticio</span>
+          <span class="tc-time">⏱ 1 hora</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-3')"></div>
+        <button class="tc-play" onclick="startTask('Armar propuesta de precios','Solsticio','1 hora','var(--csol)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-3',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <!-- Tareas RRSS -->
+    <div class="tc" id="tc-4" data-proj="rrss" data-today="true">
+      <div class="tc-acc" style="background:var(--crrss)"></div>
+      <div class="tc-th" style="background:var(--gl)">💁🏽‍♀️</div>
+      <div class="tc-body">
+        <div class="tc-name">Escoger fotos para IG</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--crrss)">● RRSS</span>
+          <span class="tc-time">⏱ 30 min</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-4')"></div>
+        <button class="tc-play" onclick="startTask('Escoger fotos para IG','RRSS','30 min','var(--crrss)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-4',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <div class="tc" id="tc-5" data-proj="rrss" data-today="true">
+      <div class="tc-acc" style="background:var(--crrss)"></div>
+      <div class="tc-th" style="background:var(--gl)">💁🏽‍♀️</div>
+      <div class="tc-body">
+        <div class="tc-name">Grabar videos TikTok</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--crrss)">● RRSS</span>
+          <span class="tc-time">⏱ 1 hora</span>
+          <button class="tc-star starred" onclick="toggleStar(this)" title="Importante">★</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-5')"></div>
+        <button class="tc-play" onclick="startTask('Grabar videos TikTok','RRSS','1 hora','var(--crrss)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-5',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <!-- OncoTrack -->
+    <div class="tc" id="tc-6" data-proj="onco" data-today="true">
+      <div class="tc-acc" style="background:var(--conco)"></div>
+      <div class="tc-th" style="background:var(--ol)">🌻</div>
+      <div class="tc-body">
+        <div class="tc-name">Revisar datos del ensayo</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--conco)">● OncoTrack</span>
+          <span class="tc-time">⏱ 45 min</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-6')"></div>
+        <button class="tc-play" onclick="startTask('Revisar datos del ensayo','OncoTrack','45 min','var(--conco)')">▶</button>
+        <button class="tc-sched tc-sched-out" onclick="toggleToday('tc-6',this)" title="Sacar de hoy">✕</button>
+      </div>
+    </div>
+
+    <!-- Non-"today" tasks — with "add to today" button -->
+    <div class="tslbl" id="otras-section-lbl" style="color:var(--g400)">
+      Otros proyectos · agregar a hoy
+    </div>
+
+    <div class="tc" id="tc-7" data-proj="agencia" data-today="false" style="opacity:.72">
+      <div class="tc-acc" style="background:var(--cag)"></div>
+      <div class="tc-th" style="background:var(--bl)">🚀</div>
+      <div class="tc-body">
+        <div class="tc-name">Brief campaña Q2</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--cag)">● Agencia</span>
+          <span class="tc-time">⏱ 1h</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-7')"></div>
+        <button class="tc-play" onclick="startTask('Brief campaña Q2','Agencia','1h','var(--cag)')">▶</button>
+        <button class="tc-sched tc-sched-in" onclick="toggleToday('tc-7',this)" title="Agregar a hoy">+</button>
+      </div>
+    </div>
+
+    <div class="tc" id="tc-8" data-proj="mix" data-today="false" style="opacity:.72">
+      <div class="tc-acc" style="background:var(--cmix)"></div>
+      <div class="tc-th" style="background:#fce4ec">✨</div>
+      <div class="tc-body">
+        <div class="tc-name">Armar playlist promo</div>
+        <div class="tc-meta">
+          <span class="tc-proj" style="color:var(--cmix)">● Mix</span>
+          <span class="tc-time">⏱ 20 min</span>
+          <button class="tc-star" onclick="toggleStar(this)" title="Importante">☆</button>
+        </div>
+      </div>
+      <div class="tc-acts">
+        <div class="tc-cb" onclick="chkTask(this,'tc-8')"></div>
+        <button class="tc-play" onclick="startTask('Armar playlist promo','Mix','20 min','var(--cmix)')">▶</button>
+        <button class="tc-sched tc-sched-in" onclick="toggleToday('tc-8',this)" title="Agregar a hoy">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="add-tc" onclick="openAddTask()">
+    <span style="font-size:16px;color:var(--purple)">+</span>
+    <span class="add-tc-t" id="add-tc-t">Nueva tarea</span>
+  </div>
+</section>
+
+<!-- ══ IDEAS ══ -->
+<section class="view" id="view-ideas">
+  <div class="ideas-hdr">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div class="ideas-title">Tu buzón<br>de <span>ideas</span></div>
+      <span class="icbadge" id="icbadge">5 ideas</span>
+    </div>
+  </div>
+  <div class="npcta" onclick="openNotepad()">
+    <div class="npbox">✏️</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:800;color:var(--g900)">Abrir buzón de notas</div>
+      <div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:2px">Escribe libremente · cada párrafo se convierte en bloque</div>
+    </div>
+    <div style="font-size:14px;color:var(--g300)">↗</div>
+  </div>
+  <!-- 3 tabs only -->
+  <div class="iftabs">
+    <div class="iftab active" onclick="fIdeas(this,'todas')">Todas</div>
+    <div class="iftab inactive" onclick="fIdeas(this,'destacadas')">⭐ Destacadas</div>
+    <div class="iftab inactive" onclick="fIdeas(this,'sinproyecto')">Sin proyecto</div>
+  </div>
+  <div id="ideas-list">
+    <div class="idea-card" data-idea-proj="">
+      <div class="ic-top"><div class="ic-title">Timer de redes sociales para el widget flotante</div><div class="ic-star" onclick="tStar(this)">☆</div></div>
+      <div class="ic-meta"><span class="ic-date">hoy</span><div class="ic-ptag" onclick="openProjPicker(this)">+ Asignar proyecto</div></div>
+      <div class="ic-acts">
+        <button class="iab" onclick="ideaToTask(this)">→ Tarea</button>
+        <button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button>
+        <button class="iab" onclick="editIdea(this)">✏️ Editar</button>
+        <button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button>
+      </div>
+    </div>
+    <div class="idea-card" data-idea-proj="">
+      <div class="ic-top"><div class="ic-title">Modo pareja — trabajar en sinc con alguien</div><div class="ic-star" onclick="tStar(this)">☆</div></div>
+      <div class="ic-meta"><span class="ic-date">hoy</span><div class="ic-ptag" onclick="openProjPicker(this)">+ Asignar proyecto</div></div>
+      <div class="ic-acts">
+        <button class="iab" onclick="ideaToTask(this)">→ Tarea</button>
+        <button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button>
+        <button class="iab" onclick="editIdea(this)">✏️ Editar</button>
+        <button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button>
+      </div>
+    </div>
+    <div class="idea-card" data-idea-proj="tat">
+      <div class="ic-top"><div class="ic-title">Exportar resumen semanal en PDF</div><div class="ic-star starred" onclick="tStar(this)">★</div></div>
+      <div class="ic-meta"><span class="ic-date">ayer</span><div class="ic-ptag asgn" onclick="openProjPicker(this)">💜 TAT</div></div>
+      <div class="ic-acts">
+        <button class="iab" onclick="ideaToTask(this)">→ Tarea</button>
+        <button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button>
+        <button class="iab" onclick="editIdea(this)">✏️ Editar</button>
+        <button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button>
+      </div>
+    </div>
+    <div class="idea-card" data-idea-proj="tat">
+      <div class="ic-top"><div class="ic-title">Integrar música relajante para hiperfoco</div><div class="ic-star" onclick="tStar(this)">☆</div></div>
+      <div class="ic-meta"><span class="ic-date">ayer</span><div class="ic-ptag asgn" onclick="openProjPicker(this)">💜 TAT</div></div>
+      <div class="ic-acts">
+        <button class="iab" onclick="ideaToTask(this)">→ Tarea</button>
+        <button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button>
+        <button class="iab" onclick="editIdea(this)">✏️ Editar</button>
+        <button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button>
+      </div>
+    </div>
+    <div class="idea-card" data-idea-proj="tat">
+      <div class="ic-top"><div class="ic-title">Sistema de puntos por racha de Pomodoros</div><div class="ic-star" onclick="tStar(this)">☆</div></div>
+      <div class="ic-meta"><span class="ic-date">ayer</span><div class="ic-ptag asgn" onclick="openProjPicker(this)">💜 TAT</div></div>
+      <div class="ic-acts">
+        <button class="iab" onclick="ideaToTask(this)">→ Tarea</button>
+        <button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button>
+        <button class="iab" onclick="editIdea(this)">✏️ Editar</button>
+        <button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ RESUMEN ══ -->
+<section class="view" id="view-resumen">
+  <div style="padding:14px 13px 7px"><div style="font-size:21px;font-weight:900">Resumen</div></div>
+  <div style="display:flex;gap:0;padding:3px 13px;background:var(--g100);border-radius:var(--r-lg);margin:0 13px 9px">
+    <div class="iftab active" style="flex:1;border-radius:var(--r-md);text-align:center" onclick="rTab(this)">Hoy</div>
+    <div class="iftab inactive" style="flex:1;border-radius:var(--r-md);text-align:center;border:none" onclick="rTab(this)">Semana</div>
+    <div class="iftab inactive" style="flex:1;border-radius:var(--r-md);text-align:center;border:none" onclick="rTab(this)">Mes</div>
+  </div>
+  <!-- Stats row -->
+  <div class="card" style="padding:5px 0">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr)">
+      <div class="stblock"><div class="stval">3h 20m</div><div class="stlbl">Foco</div></div>
+      <div class="stblock" style="border-left:1px solid var(--g100)"><div class="stval">7</div><div class="stlbl">Tareas</div></div>
+      <div class="stblock" style="border-left:1px solid var(--g100)"><div class="stval">5</div><div class="stlbl">Ideas</div></div>
+      <div class="stblock" style="border-left:1px solid var(--g100)"><div class="stval">4</div><div class="stlbl">Proyectos</div></div>
+    </div>
+  </div>
+  <!-- Mood timeline -->
+  <div class="card">
+    <div style="font-size:9px;font-weight:900;color:var(--g400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px">Mood del día</div>
+    <div style="display:flex;justify-content:space-around;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-size:20px">🔥</div><div style="font-size:9px;font-weight:700;color:var(--g400)">8am</div></div>
+      <div style="flex:1;height:2px;background:var(--g100);margin-top:10px;align-self:flex-start"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-size:20px">🙂</div><div style="font-size:9px;font-weight:700;color:var(--g400)">11am</div></div>
+      <div style="flex:1;height:2px;background:var(--g100);margin-top:10px;align-self:flex-start"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-size:20px">🪫</div><div style="font-size:9px;font-weight:700;color:var(--g400)">3pm</div></div>
+      <div style="flex:1;height:2px;background:var(--g100);margin-top:10px;align-self:flex-start"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-size:20px">🙂</div><div style="font-size:9px;font-weight:700;color:var(--g400)">5pm</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--g700);line-height:1.5;margin-top:9px;padding-top:9px;border-top:1px solid var(--g100)">Empezaste <strong>🔥 On fire</strong> → bajaste a <strong>🪫 Low battery</strong> → terminaste <strong>🙂 Normal</strong>. Patrón habitual: baja a media tarde.</div>
+  </div>
+  <!-- Project time chart -->
+  <div class="card">
+    <div style="font-size:10px;font-weight:800;color:var(--g700);margin-bottom:11px">Tiempo por proyecto</div>
+    <div style="display:flex;align-items:flex-end;gap:5px;height:75px;padding:0 3px">
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:58px;background:var(--csol)"></div><div class="cbar-lbl">☕</div></div>
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:32px;background:var(--crrss)"></div><div class="cbar-lbl">💁🏽‍♀️</div></div>
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:68px;background:var(--conco)"></div><div class="cbar-lbl">🌻</div></div>
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:16px;background:var(--cag)"></div><div class="cbar-lbl">🚀</div></div>
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:40px;background:var(--cmix)"></div><div class="cbar-lbl">✨</div></div>
+      <div class="cbar-wrap"><div style="width:100%;border-radius:4px 4px 0 0;height:24px;background:var(--ctat)"></div><div class="cbar-lbl">💜</div></div>
+    </div>
+  </div>
+  <!-- Hiperfoco -->
+  <div class="card" style="background:var(--yl);border:1px solid var(--yellow)">
+    <div style="font-size:9px;font-weight:900;color:var(--yd);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">⚡ Hiperfoco</div>
+    <div style="font-size:13px;font-weight:800">1 sesión · 47 min</div>
+    <div style="font-size:11px;font-weight:700;color:var(--g700);margin-top:2px">Completaste 3 tareas en ese estado. ¡Funciona!</div>
+  </div>
+  <!-- Ideas stats -->
+  <div class="card">
+    <div style="font-size:10px;font-weight:800;color:var(--g700);margin-bottom:8px">Ideas 💡</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:22px;font-weight:900;color:var(--purple)">5 💭</div>
+      <div style="font-size:11px;font-weight:700;color:var(--g500)">2 → tareas · 1 → proyecto</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <div style="flex:1;background:var(--pp);border-radius:var(--r-sm);padding:7px;text-align:center">
+        <div style="font-size:13px;font-weight:900;color:var(--purple)">3</div>
+        <div style="font-size:9px;font-weight:700;color:var(--g500)">sin proyecto</div>
+      </div>
+      <div style="flex:1;background:var(--yl);border-radius:var(--r-sm);padding:7px;text-align:center">
+        <div style="font-size:13px;font-weight:900;color:var(--yd)">2</div>
+        <div style="font-size:9px;font-weight:700;color:var(--g500)">destacadas</div>
+      </div>
+      <div style="flex:1;background:var(--gl);border-radius:var(--r-sm);padding:7px;text-align:center">
+        <div style="font-size:13px;font-weight:900;color:var(--green)">2</div>
+        <div style="font-size:9px;font-weight:700;color:var(--g500)">convertidas</div>
+      </div>
+    </div>
+  </div>
+  <!-- Proyectos progress -->
+  <div class="card">
+    <div style="font-size:10px;font-weight:800;color:var(--g700);margin-bottom:10px">Proyectos 📁</div>
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:800">☕ Solsticio</span><span style="font-size:10px;font-weight:700;color:var(--g400)">5/15</span></div>
+      <div class="pbar"><div class="pbf" style="width:33%;background:var(--csol)"></div></div>
+    </div>
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:800">💁🏽‍♀️ RRSS</span><span style="font-size:10px;font-weight:700;color:var(--g400)">2/10</span></div>
+      <div class="pbar"><div class="pbf" style="width:20%;background:var(--crrss)"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:800">🌻 OncoTrack</span><span style="font-size:10px;font-weight:700;color:var(--g400)">3/8</span></div>
+      <div class="pbar"><div class="pbf" style="width:37%;background:var(--conco)"></div></div>
+    </div>
+  </div>
+  <!-- RRSS -->
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:22px">📱</div>
+      <div style="flex:1"><div style="font-size:9px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px">RRSS hoy</div><div style="font-size:18px;font-weight:900">1h 47m</div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--red)">↑ 23m meta</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PERFIL + CONFIG ══ -->
+<section class="view" id="view-perfil">
+  <div style="padding:14px 13px 7px"><div style="font-size:21px;font-weight:900">Perfil</div></div>
+  <div style="display:flex;align-items:center;gap:13px;padding:0 13px 14px">
+    <div class="av">👩🏽</div>
+    <div><div style="font-size:16px;font-weight:900">Hola! 👋</div><div style="font-size:11px;font-weight:700;color:var(--g400)">TAT · Free</div><span class="pill" style="background:var(--yl);color:var(--yd);margin-top:5px;display:inline-flex">⭐ Upgrade a Pro</span></div>
+  </div>
+  <div class="card" style="background:var(--purple);color:white">
+    <div style="font-size:9px;font-weight:800;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Racha</div>
+    <div style="font-size:28px;font-weight:900">🔥 7 días</div>
+    <div style="font-size:11px;font-weight:700;opacity:.8;margin-top:2px">¡Sigue así! La semana que viene: 14.</div>
+  </div>
+  <div style="font-size:9px;font-weight:900;color:var(--g400);letter-spacing:1px;text-transform:uppercase;padding:6px 13px 4px">Alarma del timer</div>
+  <div class="card" style="padding:5px 0">
+    <div class="srow"><div class="sico">🔔</div><div class="slbl">Sonido de alarma</div><div class="sval">Campana</div><div class="sarr">›</div></div>
+    <div class="srow"><div class="sico">🔊</div><div class="slbl" style="flex:unset;margin-right:9px">Volumen</div><input type="range" min="0" max="100" value="70" style="flex:1"></div>
+    <div class="srow"><div class="sico">📳</div><div class="slbl">Vibración</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  </div>
+  <div style="padding:0 13px 10px;display:flex;gap:6px;flex-wrap:wrap">
+    <div class="schip active-sound" onclick="prevSound(this,'bells')">🔔 Campana</div>
+    <div class="schip" onclick="prevSound(this,'bowl')">🎵 Cuenco</div>
+    <div class="schip" onclick="prevSound(this,'chime')">✨ Carillón</div>
+    <div class="schip" onclick="prevSound(this,'soft')">🌿 Suave</div>
+    <div class="schip" onclick="prevSound(this,'birds')">🐦 Pájaros</div>
+    <div class="schip" onclick="prevSound(this,'ocean')">🌊 Océano</div>
+  </div>
+  <div style="font-size:9px;font-weight:900;color:var(--g400);letter-spacing:1px;text-transform:uppercase;padding:6px 13px 4px">Configuración</div>
+  <div class="card" style="padding:5px 0;margin-bottom:9px">
+    <div class="srow"><div class="sico">🌸</div><div class="slbl">Modo Pomodoro</div><div class="sval">25 / 5 min</div><div class="sarr">›</div></div>
+    <div class="srow"><div class="sico">🤖</div><div class="slbl">Sugerencias IA por mood</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="srow"><div class="sico">💡</div><div class="slbl">Consejos de bienestar</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="srow"><div class="sico">📱</div><div class="slbl">Registro tiempo RRSS</div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+    <div class="srow"><div class="sico">⚡</div><div class="slbl">Tracking Hiperfoco</div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="srow"><div class="sico">😊</div><div class="slbl">Recordatorio mood</div><div class="sval">Cada 2h</div><div class="sarr">›</div></div>
+    <div class="srow"><div class="sico">🎯</div><div class="slbl">Meta RRSS diaria</div><div class="sval">1 hora</div><div class="sarr">›</div></div>
+  </div>
+  <div style="padding:0 13px 20px">
+    <button class="btn btn-p btn-f" style="margin-bottom:7px">🌟 Actualizar a Pro — $7/mes</button>
+    <button class="btn btn-o btn-f">Exportar mis datos</button>
+  </div>
+</section>
+
+</div><!-- /#app -->
+
+<!-- NAV -->
+<nav id="bnav">
+  <div class="ni nf active" onclick="showView('focus')" id="nav-focus"><div class="nfw">⏱️</div><div class="nfl">Focus</div></div>
+  <div class="ni" onclick="showView('tareas')" id="nav-tareas"><div class="nico">📋</div><div>Tareas</div></div>
+  <div class="ni" onclick="showView('ideas')" id="nav-ideas"><div class="nico">💭</div><div>Ideas</div></div>
+  <div class="ni" onclick="showView('resumen')" id="nav-resumen"><div class="nico">📊</div><div>Resumen</div></div>
+  <div class="ni" onclick="showView('perfil')" id="nav-perfil"><div class="nico">👤</div><div>Perfil</div></div>
+</nav>
+
+<div class="sbub" id="sbub" onclick="openSocial()">
+  <div style="font-size:17px">📱</div>
+  <div class="sbub-lbl">Timer redes</div>
+</div>
+
+<!-- SHEETS -->
+
+<!-- MOOD SHEET — sin botón "Listo", solo elegir -->
+<div class="sov" id="mood-overlay" onclick="closeMoodSheet()"></div>
+<div class="sheet" id="mood-sheet" style="max-height:72vh">
+  <div class="shh"></div>
+  <div style="font-size:21px;font-weight:900;color:var(--g900);padding:0 13px 2px;line-height:1.25">Antes de arrancar,<br><span style="color:var(--yd)">¿cómo estás hoy?</span></div>
+  <div style="font-size:12px;font-weight:600;color:var(--g400);padding:4px 13px 12px">Sé honesta — nadie te ve 👀</div>
+  <div class="mgrid">
+    <div class="mcard on-fire sel" onclick="selMood(this,'🔥','on-fire')"><div class="mcard-em">🔥</div><div class="mcard-name">On fire</div><div class="mcard-desc">¡Llena de energía!</div></div>
+    <div class="mcard normal" onclick="selMood(this,'🙂','normal')"><div class="mcard-em">🙂</div><div class="mcard-name">Normal</div><div class="mcard-desc">¡Comencemos!</div></div>
+    <div class="mcard dispersa" onclick="selMood(this,'😶‍🌫️','dispersa')"><div class="mcard-em">😶‍🌫️</div><div class="mcard-name">Dispersa</div><div class="mcard-desc">No sé por dónde empezar</div></div>
+    <div class="mcard low" onclick="selMood(this,'🪫','low')"><div class="mcard-em">🪫</div><div class="mcard-name">Low battery</div><div class="mcard-desc">Cansada · tareas cortas</div></div>
+  </div>
+</div>
+
+<!-- DONE SHEET -->
+<div class="sov" id="done-overlay" onclick="closeDone()"></div>
+<div class="sheet" id="done-sheet" style="max-height:52vh">
+  <div class="shh"></div>
+  <div style="font-size:16px;font-weight:900;text-align:center;padding:0 13px 12px">¿Terminaste? 🎉</div>
+  <div class="dopt" onclick="doneAct('completed')"><span>✅</span><div><div style="font-size:13px;font-weight:800">¡Sí, completé la tarea!</div><div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:2px">Marcarla como terminada</div></div></div>
+  <div class="dopt" onclick="doneAct('pause')"><span>⏸️</span><div><div style="font-size:13px;font-weight:800">Necesito un descanso</div><div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:2px">5 o 10 min y sigo</div></div></div>
+  <div class="dopt" onclick="doneAct('switch')"><span>🔄</span><div><div style="font-size:13px;font-weight:800">Cambiar de tarea</div><div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:2px">Mantener el flujo</div></div></div>
+</div>
+
+<!-- BREAK SHEET -->
+<div class="sov" id="break-overlay" onclick="closeBreak()"></div>
+<div class="shtop" id="break-sheet" style="max-height:48vh">
+  <div style="padding:12px 13px 14px;text-align:center">
+    <div style="font-size:14px;font-weight:900;margin-bottom:10px">Descanso 🌿</div>
+    <div style="font-size:36px;font-weight:900;color:var(--green);letter-spacing:-2px">05:00</div>
+    <div style="display:flex;gap:9px;justify-content:center;margin:11px 0">
+      <button class="btn btn-o" style="padding:7px 16px;font-size:12px" onclick="setBreak(5)">5 min</button>
+      <button class="btn btn-o" style="padding:7px 16px;font-size:12px" onclick="setBreak(10)">10 min</button>
+    </div>
+    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:12px">
+      <span class="pill">🚶 Camina</span><span class="pill">😮‍💨 Respira 4-4-4</span><span class="pill">🌿 Estira</span>
+    </div>
+    <button class="btn btn-p btn-f" onclick="closeBreak()">Continuar →</button>
+  </div>
+</div>
+
+<!-- ADD TASK SHEET -->
+<div class="sov" id="addtask-overlay" onclick="closeAddTask()"></div>
+<div class="sheet" id="addtask-sheet" style="max-height:50vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 14px">
+    <div style="font-size:16px;font-weight:900;margin-bottom:11px">Nueva tarea</div>
+    <input type="text" id="nti" placeholder="¿Qué hay que hacer?" style="width:100%;padding:12px 13px;border:2px solid var(--g200);border-radius:var(--r-md);font-family:var(--font);font-size:13px;font-weight:700;outline:none;color:var(--g900);background:var(--g100);transition:border-color .15s" onfocus="this.style.borderColor='var(--purple)';this.style.background='white'" onblur="this.style.borderColor='var(--g200)';this.style.background='var(--g100)'">
+    <div style="margin-top:9px"><button class="btn btn-p btn-f" onclick="addTask()">Agregar tarea</button></div>
+    <div style="margin-top:7px"><button class="btn btn-o btn-f" onclick="closeAddTask()">🤖 Generar con IA</button></div>
+  </div>
+</div>
+
+<!-- NOTEPAD SHEET -->
+<div class="sov" id="notepad-overlay" onclick="closeNotepad()"></div>
+<div class="sheet" id="notepad-sheet" style="max-height:70vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+      <div style="font-size:15px;font-weight:900">Nueva idea ✏️</div>
+      <button class="icon-btn" onclick="closeNotepad()">✕</button>
+    </div>
+    <textarea id="iinput" placeholder="¿Qué tienes en la cabeza? Escribe sin filtros…" rows="5" style="width:100%;padding:12px;border:2px solid var(--g200);border-radius:var(--r-md);font-family:var(--font);font-size:13px;font-weight:600;color:var(--g900);resize:none;outline:none;background:var(--g100);line-height:1.6;transition:border-color .15s" onfocus="this.style.borderColor='var(--purple)';this.style.background='white'" onblur="this.style.borderColor='var(--g200)';this.style.background='var(--g100)'"></textarea>
+    <div style="display:flex;gap:7px;margin-top:9px">
+      <button class="btn btn-p" style="flex:1;padding:11px" onclick="saveIdea()">💡 Guardar</button>
+      <button class="btn btn-o" style="padding:11px 13px" onclick="document.getElementById('iinput').value=''">🗑️</button>
+    </div>
+  </div>
+</div>
+
+<!-- SOCIAL / RRSS TIMER SHEET -->
+<div class="sov" id="social-overlay" onclick="closeSocial()"></div>
+<div class="sheet" id="social-sheet" style="max-height:72vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 13px">
+    <div style="font-size:16px;font-weight:900;margin-bottom:2px">📱 Timer de redes sociales</div>
+    <div style="font-size:10px;font-weight:700;color:var(--g400);margin-bottom:14px">Mide tu tiempo en RRSS hoy</div>
+
+    <!-- Mode selector -->
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="tmb active" id="rrss-btn-15" onclick="setRRSSMode(15,this)" style="flex:1;padding:9px 4px">⏱ 15 min</button>
+      <button class="tmb" id="rrss-btn-30" onclick="setRRSSMode(30,this)" style="flex:1;padding:9px 4px">⏱ 30 min</button>
+      <button class="tmb" id="rrss-btn-crono" onclick="setRRSSMode(0,this)" style="flex:1;padding:9px 4px">🔢 Cronóm.</button>
+    </div>
+
+    <!-- Timer display -->
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:52px;font-weight:900;color:var(--purple);letter-spacing:-3px;line-height:1" id="rrss-display">15:00</div>
+      <div style="font-size:11px;font-weight:700;color:var(--g500);margin-top:3px" id="rrss-sub">límite de redes</div>
+    </div>
+
+    <!-- Start / stop -->
+    <div style="display:flex;gap:7px;margin-bottom:12px">
+      <button class="btn btn-p" style="flex:1" id="rrss-start-btn" onclick="toggleRRSSTimer()">
+        <span id="rrss-start-ico">▶</span> <span id="rrss-start-lbl">Iniciar</span>
+      </button>
+      <button class="btn btn-o" style="padding:13px 14px" onclick="resetRRSSTimer()">↺</button>
+    </div>
+
+    <!-- Today summary -->
+    <div style="background:var(--g100);border-radius:var(--r-md);padding:11px 13px;margin-bottom:0">
+      <div style="font-size:9px;font-weight:900;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Hoy</div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:17px;font-weight:900">47 min</div>
+          <div style="font-size:9px;font-weight:700;color:var(--g500)">📸 Insta</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:17px;font-weight:900">1h 00m</div>
+          <div style="font-size:9px;font-weight:700;color:var(--g500)">🎵 TikTok</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:17px;font-weight:900;color:var(--red)">1h 47m</div>
+          <div style="font-size:9px;font-weight:700;color:var(--red)">↑ total</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT PICKER SHEET (for ideas → task in project) -->
+<div class="sov" id="projpick-overlay" onclick="closeProjPicker()"></div>
+<div class="sheet" id="projpick-sheet" style="max-height:65vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 14px">
+    <div style="font-size:16px;font-weight:900;margin-bottom:4px" id="projpick-title">Convertir en tarea de…</div>
+    <div style="font-size:11px;font-weight:700;color:var(--g400);margin-bottom:14px">Elige un proyecto existente o crea uno nuevo</div>
+    <!-- Existing projects -->
+    <div id="projpick-list">
+      <div class="proj-pick-row" onclick="confirmProjPick('solsticio','☕','Solsticio','var(--csol)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--yl);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">☕</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">Solsticio</div>
+        <div style="font-size:11px;font-weight:700;color:var(--csol)">5/15 tareas</div>
+      </div>
+      <div class="proj-pick-row" onclick="confirmProjPick('rrss','💁🏽‍♀️','RRSS','var(--crrss)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💁🏽‍♀️</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">RRSS Wellness</div>
+        <div style="font-size:11px;font-weight:700;color:var(--crrss)">2/10 tareas</div>
+      </div>
+      <div class="proj-pick-row" onclick="confirmProjPick('onco','🌻','OncoTrack','var(--conco)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--ol);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🌻</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">OncoTrack</div>
+        <div style="font-size:11px;font-weight:700;color:var(--conco)">7/10 tareas</div>
+      </div>
+      <div class="proj-pick-row" onclick="confirmProjPick('agencia','🚀','Agencia','var(--cag)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--bl);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🚀</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">Agencia</div>
+        <div style="font-size:11px;font-weight:700;color:var(--cag)">1/5 tareas</div>
+      </div>
+      <div class="proj-pick-row" onclick="confirmProjPick('tat','💜','TAT','var(--ctat)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--pp);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💜</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">TAT</div>
+        <div style="font-size:11px;font-weight:700;color:var(--ctat)">0/12 tareas</div>
+      </div>
+      <div class="proj-pick-row" onclick="confirmProjPick('mix','✨','Mix','var(--cmix)')">
+        <div style="width:36px;height:36px;border-radius:9px;background:#fce4ec;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">✨</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--g900)">Mix</div>
+        <div style="font-size:11px;font-weight:700;color:var(--cmix)">3/8 tareas</div>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-o btn-f" onclick="closeProjPicker();ideaToNewProj(S.currentIdeaBtn)">+ Crear nuevo proyecto</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT IDEA SHEET -->
+<div class="sov" id="editidea-overlay" onclick="closeEditIdea()"></div>
+<div class="sheet" id="editidea-sheet" style="max-height:55vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:15px;font-weight:900">Editar idea ✏️</div>
+      <button class="icon-btn" onclick="closeEditIdea()">✕</button>
+    </div>
+    <textarea id="edit-idea-input" rows="4" style="width:100%;padding:12px;border:2px solid var(--g200);border-radius:var(--r-md);font-family:var(--font);font-size:13px;font-weight:600;color:var(--g900);resize:none;outline:none;background:var(--g100);line-height:1.5;transition:border-color .15s" onfocus="this.style.borderColor='var(--purple)';this.style.background='white'" onblur="this.style.borderColor='var(--g200)';this.style.background='var(--g100)'"></textarea>
+    <div style="margin-top:9px">
+      <button class="btn btn-p btn-f" onclick="saveEditIdea()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PROJECT FROM IDEA SHEET -->
+<div class="sov" id="newproj-overlay" onclick="closeNewProj()"></div>
+<div class="sheet" id="newproj-sheet" style="max-height:55vh">
+  <div class="shh"></div>
+  <div style="padding:0 13px 13px">
+    <div style="font-size:15px;font-weight:900;margin-bottom:12px">Nuevo proyecto 📁</div>
+    <input type="text" id="newproj-name" placeholder="Nombre del proyecto…" style="width:100%;padding:12px 13px;border:2px solid var(--g200);border-radius:var(--r-md);font-family:var(--font);font-size:13px;font-weight:700;outline:none;color:var(--g900);background:var(--g100);margin-bottom:9px;transition:border-color .15s" onfocus="this.style.borderColor='var(--purple)';this.style.background='white'" onblur="this.style.borderColor='var(--g200)';this.style.background='var(--g100)'">
+    <div style="font-size:11px;font-weight:700;color:var(--g400);margin-bottom:8px">Elige un emoji</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="emoji-picker">
+      <span class="emoji-opt sel-emoji" onclick="selEmoji(this)">🎯</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🌟</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🔮</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🌺</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🎨</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🏆</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">💡</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">🚀</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">📚</span>
+      <span class="emoji-opt" onclick="selEmoji(this)">💜</span>
+    </div>
+    <button class="btn btn-p btn-f" onclick="confirmNewProj()">Crear proyecto</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const MOODS={'on-fire':{emoji:'🔥',label:'On fire',color:'var(--orange)',bg:'var(--ol)',title:'¡Estás On fire!',desc:'Aprovecha la energía — elige una tarea desafiante.',btn:'+ Modo energía alta'},'normal':{emoji:'🙂',label:'Normal',color:'var(--green)',bg:'var(--gl)',title:'Un día normal, ¡comencemos!',desc:'Tareas balanceadas — nada demasiado pesado ni liviano.',btn:'+ Modo equilibrado'},'dispersa':{emoji:'😶‍🌫️',label:'Dispersa',color:'#8B6AB5',bg:'var(--pg)',title:'Dispersa hoy…',desc:'Empieza con algo pequeño para entrar en ritmo.',btn:'+ Modo fácil'},'low':{emoji:'🪫',label:'Low battery',color:'var(--blue)',bg:'var(--bl)',title:'Low battery 🪫',desc:'Tareas cortas y concretas. Cada pequeña cosa cuenta.',btn:'+ Modo suave'}};
+const PROJ={mix:{n:'Mix',e:'✨',c:'var(--cmix)'},solsticio:{n:'Solsticio',e:'☕',c:'var(--csol)'},rrss:{n:'RRSS',e:'💁🏽‍♀️',c:'var(--crrss)'},onco:{n:'OncoTrack',e:'🌻',c:'var(--conco)'},agencia:{n:'Agencia',e:'🚀',c:'var(--cag)'},tat:{n:'TAT',e:'💜',c:'var(--ctat)'}};
+const TIPS=[{i:'🚶',t:'Llevas 90 min sentada — 5 minutos de caminar resetean el cerebro.'},{i:'💧',t:'Toma tu aguita — ¿cuántos vasos llevas hoy?'},{i:'🍎',t:'Un snack ahora te evita el bajón de las 3pm.'},{i:'☕',t:'No tomes café después de las 4pm.'},{i:'😮‍💨',t:'Pausa 60s — respira, los hombros para abajo.'}];
+const S={view:'focus',mood:'on-fire',mode:'pomodoro',running:false,secs:25*60,iv:null,cH:0,cM:45,hyper:false,moodShown:false,bannerTimer:null,rrssMode:15,rrssSecs:15*60,rrssRunning:false,rrssIv:null,rrssCountUp:false};
+
+(function(){const d=new Date(),D=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'],el=document.getElementById('date-b');if(el)el.textContent=D[d.getDay()]+' '+d.getDate()+' '+M[d.getMonth()]})();
+
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));const v=document.getElementById('view-'+id);if(v)v.classList.add('active');S.view=id;document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));const n=document.getElementById('nav-'+id);if(n)n.classList.add('active');document.getElementById('sbub').style.display=(id==='focus'||id==='tareas')?'flex':'none'}
+
+function openSheet(id){document.getElementById(id+'-overlay').classList.add('open');document.getElementById(id+'-sheet').classList.add('open')}
+function closeSheet(id){document.getElementById(id+'-overlay').classList.remove('open');document.getElementById(id+'-sheet').classList.remove('open')}
+function openMoodSheet(){
+  // mark current mood as selected in grid
+  document.querySelectorAll('.mcard').forEach(c=>{c.classList.remove('sel')});
+  const map={'on-fire':0,'normal':1,'dispersa':2,'low':3};
+  const cards=document.querySelectorAll('.mcard');
+  if(cards[map[S.mood]])cards[map[S.mood]].classList.add('sel');
+  openSheet('mood');
+}
+function closeMoodSheet(){closeSheet('mood')}
+function openNotepad(){openSheet('notepad');setTimeout(()=>document.getElementById('iinput').focus(),350)}
+function closeNotepad(){closeSheet('notepad')}
+function openAddTask(){openSheet('addtask');setTimeout(()=>document.getElementById('nti').focus(),350)}
+function closeAddTask(){closeSheet('addtask')}
+function openSocial(){openSheet('social')}
+function closeSocial(){closeSheet('social')}
+function showDone(){openSheet('done')}
+function closeDone(){closeSheet('done')}
+function openBreak(){document.getElementById('break-overlay').classList.add('open');document.getElementById('break-sheet').classList.add('open')}
+function closeBreak(){document.getElementById('break-overlay').classList.remove('open');document.getElementById('break-sheet').classList.remove('open')}
+
+// Mood — clicking icon in topbar opens sheet; clicking selected opens sheet too
+function moodClick(btn){openMoodSheet()}
+
+// selMood: select from sheet grid -> auto close, no button needed
+function selMood(card,emoji,key){
+  document.querySelectorAll('.mcard').forEach(c=>c.classList.remove('sel'));
+  card.classList.add('sel');
+  applyMood(key);
+  setTimeout(closeMoodSheet,280);
+}
+function applyMood(key){
+  S.mood=key;
+  const m=MOODS[key];
+  // topbar: selected full opacity, others faded
+  document.querySelectorAll('.meb').forEach(b=>{
+    b.classList.toggle('sel',b.dataset.mood===key);
+    b.classList.toggle('fad',b.dataset.mood!==key);
+  });
+  // focus strip — show immediately
+  const ms=document.getElementById('mstrip');
+  if(ms){ms.style.background=m.bg;ms.style.display='flex';document.getElementById('ms-em').textContent=m.emoji;const t=document.getElementById('ms-title');t.textContent=m.title;t.style.color=m.color;document.getElementById('ms-desc').textContent=m.desc;const b=document.getElementById('ms-btn');b.textContent=m.btn;b.style.color=m.color;b.style.borderColor=m.color}
+  // tasks strip — show only on "Todas" tab
+  const sg=document.getElementById('msug');
+  if(sg){sg.style.background=m.bg;document.getElementById('msug-em').textContent=m.emoji;const t=document.getElementById('msug-title');t.textContent=m.title;t.style.color=m.color;document.getElementById('msug-desc').textContent=m.desc;const b=document.getElementById('msug-btn');b.textContent=m.btn;b.style.color=m.color;b.style.borderColor=m.color;
+    const activePT=document.querySelector('.ptab.active');
+    sg.style.display=(activePT&&activePT.textContent.includes('Todas'))?'flex':'none';
+  }
+  // Auto-hide banners after 8s
+  S.moodShown=true;
+  clearTimeout(S.bannerTimer);
+  S.bannerTimer=setTimeout(()=>{
+    const x=document.getElementById('mstrip');if(x)x.style.display='none';
+    const y=document.getElementById('msug');if(y)y.style.display='none';
+  },8000);
+}
+
+// Timer
+function pad(n){return String(n).padStart(2,'0')}
+function updTimer(){
+  const el=document.getElementById('tdisp');if(!el)return;
+  const m=Math.floor(S.secs/60),s=S.secs%60;el.textContent=pad(m)+':'+pad(s);
+  const tot=S.mode==='libre'?(S.cH*3600+S.cM*60):S.mode==='abierta'?999999:25*60;
+  const pct=Math.max(0,Math.min(1,S.mode==='abierta'?0:S.secs/tot));
+  const fill=document.getElementById('trf');if(fill)fill.setAttribute('stroke-dashoffset',String(232*(1-pct)));
+}
+function setMode(mode,btn){
+  document.querySelectorAll('.tmb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');S.mode=mode;
+  const p=document.getElementById('tpick');
+  p.style.display=mode==='libre'?'flex':'none';
+  if(mode==='pomodoro'){S.secs=25*60;document.getElementById('tsubl').textContent='trabajo'}
+  else if(mode==='abierta'){S.secs=0;document.getElementById('tsubl').textContent='libre'}
+  else{S.secs=S.cH*3600+S.cM*60;document.getElementById('tsubl').textContent='mi tiempo'}
+  updTimer();clearInterval(S.iv);S.running=false;
+  document.getElementById('sico').textContent='▶';document.getElementById('slbl').textContent='INICIAR';
+}
+function adjT(u,d){
+  if(u==='h'){S.cH=Math.max(0,Math.min(8,S.cH+d));document.getElementById('tp-h').textContent=S.cH}
+  else{S.cM=Math.max(0,Math.min(55,Math.round((S.cM+d)/5)*5));document.getElementById('tp-m').textContent=S.cM}
+}
+function applyT(){S.secs=S.cH*3600+S.cM*60;updTimer();document.getElementById('tpick').style.display='none'}
+function toggleTimer(){
+  if(S.mode==='abierta'){
+    if(S.running){clearInterval(S.iv);S.running=false;document.getElementById('sico').textContent='▶';document.getElementById('slbl').textContent='INICIAR'}
+    else{S.running=true;document.getElementById('sico').textContent='⏸';document.getElementById('slbl').textContent='PAUSAR';S.iv=setInterval(()=>{S.secs++;updTimer()},1000);playSound('start');showTip()}
+    return;
+  }
+  if(S.running){clearInterval(S.iv);S.running=false;document.getElementById('sico').textContent='▶';document.getElementById('slbl').textContent='INICIAR'}
+  else{
+    if(S.secs===0)resetTimer();
+    S.running=true;document.getElementById('sico').textContent='⏸';document.getElementById('slbl').textContent='PAUSAR';
+    playSound('start');showTip();
+    S.iv=setInterval(()=>{if(S.secs>0){S.secs--;updTimer()}else{clearInterval(S.iv);S.running=false;playSound('bells');showDone()}},1000);
+  }
+}
+function resetTimer(){clearInterval(S.iv);S.running=false;S.secs=S.mode==='libre'?(S.cH*3600+S.cM*60):S.mode==='abierta'?0:25*60;updTimer();document.getElementById('sico').textContent='▶';document.getElementById('slbl').textContent='INICIAR'}
+function toggleHyper(){
+  S.hyper=!S.hyper;
+  document.getElementById('hbanner').classList.toggle('on',S.hyper);
+  document.getElementById('hbtn').style.background=S.hyper?'var(--yellow)':'var(--yl)';
+}
+
+// Tasks
+function startTask(name,proj,dur,color){
+  document.getElementById('atask-name').textContent=name;
+  document.getElementById('atask-proj').textContent='● '+proj;
+  document.getElementById('atask-proj').style.color=color;
+  document.getElementById('atask-dur').textContent='⏱ '+dur;
+  showView('focus');
+}
+function chkTask(cb,id){
+  cb.classList.toggle('done');
+  const nm=cb.closest('.tc').querySelector('.tc-name');if(nm)nm.classList.toggle('done');
+  const card=document.getElementById(id);
+  if(card){
+    if(cb.classList.contains('done')){
+      cb.textContent='✓';
+      card.style.opacity='.6';
+      // Add done date
+      let dd=nm.parentElement.querySelector('.tc-done-date');
+      if(!dd){dd=document.createElement('div');dd.className='tc-done-date';nm.parentElement.appendChild(dd)}
+      const now=new Date();dd.textContent='✓ Completada el '+now.getDate()+'/'+(now.getMonth()+1)+' a las '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+      playSound('check');
+    } else {
+      cb.textContent='';card.style.opacity='1';
+      const dd=nm.parentElement.querySelector('.tc-done-date');if(dd)dd.remove();
+    }
+  }
+}
+function schedTask(id){toggleToday(id,document.querySelector('#'+id+' .tc-sched'))}
+function sortTasks(){}
+
+// toggleToday: moves task in/out of "hoy" tab
+function toggleToday(id,btn){
+  const card=document.getElementById(id);if(!card)return;
+  const isToday=card.dataset.today==='true';
+  if(isToday){
+    card.dataset.today='false';card.style.opacity='.72';
+    btn.className='tc-sched tc-sched-in';btn.textContent='+';btn.title='Agregar a hoy';
+    const otrasLbl=document.getElementById('otras-section-lbl');
+    if(otrasLbl)otrasLbl.insertAdjacentElement('afterend',card);
+    showToast('Tarea sacada de hoy 📤');
+  }else{
+    card.dataset.today='true';card.style.opacity='1';
+    btn.className='tc-sched tc-sched-out';btn.textContent='✕';btn.title='Sacar de hoy';
+    const todayLbl=document.getElementById('today-section-lbl');
+    if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
+    showToast('¡Tarea agregada a hoy! ✅');
+  }
+}
+
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:calc(var(--nh) + var(--sb) + 16px);left:50%;transform:translateX(-50%);background:var(--g900);color:white;padding:10px 18px;border-radius:var(--r-f);font-size:12px;font-weight:800;z-index:999;transition:opacity .3s;pointer-events:none';document.body.appendChild(t)}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0'},2200);
+}
+
+// Tasks tab filter
+function switchTab(el,key){
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  document.querySelectorAll('.tc').forEach(tc=>{
+    if(key==='hoy') tc.style.display=tc.dataset.today==='true'?'flex':'none';
+    else tc.style.display=(tc.dataset.proj===key)?'flex':'none';
+  });
+  document.querySelectorAll('.tslbl').forEach(l=>l.style.display=key==='hoy'?'flex':'none');
+  const msug=document.getElementById('msug');
+  if(msug)msug.style.display=(key==='hoy'&&S.moodShown)?'flex':'none';
+  const at=document.getElementById('add-tc-t');
+  if(at){if(key==='hoy')at.textContent='Nueva tarea';else{const p=PROJ[key];if(p)at.textContent='Nueva tarea en '+p.e+' '+p.n}}
+}
+function addTask(){
+  const inp=document.getElementById('nti');if(!inp.value.trim())return;
+  const list=document.getElementById('tlist');const id='tc-'+Date.now();
+  const card=document.createElement('div');card.className='tc';card.id=id;card.dataset.today='true';card.dataset.proj='solsticio';
+  card.innerHTML=`<div class="tc-acc" style="background:var(--csol)"></div><div class="tc-th" style="background:var(--yl)">☕</div><div class="tc-body"><div class="tc-name">${inp.value.trim()}</div><div class="tc-meta"><span class="tc-proj" style="color:var(--csol)">● Solsticio</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${inp.value.trim()}','Solsticio','–','var(--csol)')">▶</button><button class="tc-sched tc-sched-out" onclick="toggleToday('${id}',this)" title="Sacar de hoy">✕</button></div>`;
+  const todayLbl=document.getElementById('today-section-lbl');
+  if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
+  inp.value='';closeAddTask();playSound('check');
+}
+function goProj(k){showView('tareas')}
+
+// ── IDEAS ──
+let currentIdeaCard=null;
+
+function fIdeas(el,filter){
+  el.closest('.iftabs').querySelectorAll('.iftab').forEach(t=>{t.classList.remove('active');t.classList.add('inactive')});
+  el.classList.remove('inactive');el.classList.add('active');
+  document.querySelectorAll('.idea-card').forEach(c=>{
+    if(filter==='todas') c.style.display='';
+    else if(filter==='destacadas') c.style.display=c.querySelector('.ic-star.starred')?'':'none';
+    else if(filter==='sinproyecto') c.style.display=(!c.dataset.ideaProj)?'':'none';
+    else c.style.display='';
+  });
+}
+
+function tStar(el){el.classList.toggle('starred');el.textContent=el.classList.contains('starred')?'★':'☆'}
+
+function delIdea(btn){
+  const c=btn.closest('.idea-card');
+  c.style.transition='all .18s';c.style.opacity='0';c.style.transform='scale(.95)';
+  setTimeout(()=>c.remove(),200);
+}
+
+// → Tarea: opens project picker to choose which project's task list to add to
+function ideaToTask(btn){
+  currentIdeaCard=btn.closest('.idea-card');
+  S.currentIdeaBtn=btn;
+  S.ideaMode='task';
+  document.getElementById('projpick-title').textContent='Convertir en tarea de…';
+  openSheet('projpick');
+}
+
+// 📁 Nuevo proyecto: opens new project sheet
+function ideaToNewProj(btn){
+  currentIdeaCard=btn?btn.closest('.idea-card'):currentIdeaCard;
+  S.ideaMode='newproj';
+  closeSheet('projpick');
+  setTimeout(()=>openSheet('newproj'),200);
+}
+
+// Assign project tag without converting to task
+function openProjPicker(tagEl){
+  currentIdeaCard=tagEl.closest('.idea-card');
+  S.currentIdeaBtn=tagEl;
+  S.ideaMode='assign';
+  document.getElementById('projpick-title').textContent='Asignar a proyecto…';
+  openSheet('projpick');
+}
+function closeProjPicker(){closeSheet('projpick')}
+
+function confirmProjPick(projKey,emoji,projName,color){
+  if(!currentIdeaCard)return;
+  // Update tag in idea card
+  const tag=currentIdeaCard.querySelector('.ic-ptag');
+  if(tag){tag.textContent=emoji+' '+projName;tag.classList.add('asgn')}
+  currentIdeaCard.dataset.ideaProj=projKey;
+
+  if(S.ideaMode==='task'){
+    // Also add as task in that project
+    const title=currentIdeaCard.querySelector('.ic-title').textContent;
+    const list=document.getElementById('tlist');const id='tc-idea-'+Date.now();
+    const card=document.createElement('div');card.className='tc';card.id=id;card.dataset.today='false';card.dataset.proj=projKey;card.style.opacity='.72';
+    card.innerHTML=`<div class="tc-acc" style="background:${color}"></div><div class="tc-th" style="font-size:18px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;margin:11px 0 11px 11px">${emoji}</div><div class="tc-body"><div class="tc-name">${title}</div><div class="tc-meta"><span class="tc-proj" style="color:${color}">● ${projName}</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${title}','${projName}','–','${color}')">▶</button><button class="tc-sched tc-sched-in" onclick="toggleToday('${id}',this)" title="Agregar a hoy">+</button></div>`;
+    list.appendChild(card);
+    showToast('¡Idea convertida en tarea de '+projName+'! ✅');
+    // Mark idea as converted
+    const acts=currentIdeaCard.querySelector('.ic-acts');
+    if(acts){const lbl=document.createElement('div');lbl.style.cssText='padding:7px 13px;font-size:10px;font-weight:800;color:var(--green);background:var(--gl);text-align:center';lbl.textContent='✓ Convertida en tarea de '+projName;acts.replaceWith(lbl)}
+  }else{
+    showToast('Proyecto asignado: '+projName+' '+emoji);
+  }
+  closeProjPicker();
+}
+
+// Edit idea
+function editIdea(btn){
+  currentIdeaCard=btn.closest('.idea-card');
+  const title=currentIdeaCard.querySelector('.ic-title').textContent;
+  document.getElementById('edit-idea-input').value=title;
+  openSheet('editidea');
+}
+function closeEditIdea(){closeSheet('editidea')}
+function saveEditIdea(){
+  const inp=document.getElementById('edit-idea-input');
+  if(!inp.value.trim()||!currentIdeaCard)return;
+  currentIdeaCard.querySelector('.ic-title').textContent=inp.value.trim();
+  closeEditIdea();showToast('Idea actualizada ✏️');
+}
+
+// New project from idea
+function closeNewProj(){closeSheet('newproj')}
+function selEmoji(el){document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('sel-emoji'));el.classList.add('sel-emoji')}
+function confirmNewProj(){
+  const name=document.getElementById('newproj-name').value.trim();
+  const emoji=document.querySelector('.emoji-opt.sel-emoji')?.textContent||'🎯';
+  if(!name)return;
+  showToast('¡Proyecto "'+name+'" creado! '+emoji);
+  closeNewProj();
+  if(currentIdeaCard){
+    const tag=currentIdeaCard.querySelector('.ic-ptag');
+    if(tag){tag.textContent=emoji+' '+name;tag.classList.add('asgn')}
+  }
+  document.getElementById('newproj-name').value='';
+}
+
+// Save new idea from notepad
+function saveIdea(){
+  const inp=document.getElementById('iinput');if(!inp.value.trim())return;
+  const list=document.getElementById('ideas-list');
+  const card=document.createElement('div');card.className='idea-card';card.dataset.ideaProj='';
+  const txt=inp.value.trim().split('\n')[0].slice(0,80);
+  const id='idea-'+Date.now();
+  card.innerHTML=`<div class="ic-top"><div class="ic-title">${txt}</div><div class="ic-star" onclick="tStar(this)">☆</div></div><div class="ic-meta"><span class="ic-date">ahora</span><div class="ic-ptag" onclick="openProjPicker(this)">+ Asignar proyecto</div></div><div class="ic-acts"><button class="iab" onclick="ideaToTask(this)">→ Tarea</button><button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button><button class="iab" onclick="editIdea(this)">✏️ Editar</button><button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button></div>`;
+  list.prepend(card);inp.value='';closeNotepad();playSound('check');
+}
+
+// Resumen tab
+function rTab(el){el.closest('div').querySelectorAll('.iftab').forEach(b=>{b.classList.remove('active');b.classList.add('inactive')});el.classList.remove('inactive');el.classList.add('active')}
+
+// Done
+function doneAct(a){closeDone();if(a==='pause')setTimeout(openBreak,300);if(a==='switch')setTimeout(()=>showView('tareas'),300);if(a==='completed')playSound('complete')}
+function setBreak(m){const el=document.querySelector('#break-sheet div[style*="36px"]');if(el)el.textContent=m+':00'}
+
+// Tips
+function showTip(){const t=TIPS[Math.floor(Math.random()*TIPS.length)];const c=document.getElementById('tip-card');if(!c)return;document.getElementById('tip-ico').textContent=t.i;document.getElementById('tip-txt').textContent=t.t;c.style.display='flex'}
+
+// Sounds
+const ACtx=window.AudioContext||window.webkitAudioContext;let actx;
+function gCtx(){if(!actx)actx=new ACtx();return actx}
+function playSound(type){try{const ctx=gCtx(),n=ctx.currentTime;if(type==='check'){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,n);o.frequency.exponentialRampToValueAtTime(440,n+.15);g.gain.setValueAtTime(.2,n);g.gain.exponentialRampToValueAtTime(.001,n+.2);o.start(n);o.stop(n+.2)}else if(type==='start'){[440,550,660].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(f,n+i*.12);g.gain.setValueAtTime(.16,n+i*.12);g.gain.exponentialRampToValueAtTime(.001,n+i*.12+.4);o.start(n+i*.12);o.stop(n+i*.12+.4)})}else if(type==='complete'){[523,659,784,1046].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(f,n+i*.1);g.gain.setValueAtTime(.14,n+i*.1);g.gain.exponentialRampToValueAtTime(.001,n+i*.1+.5);o.start(n+i*.1);o.stop(n+i*.1+.5)})}else if(['bells','bowl','chime','soft'].includes(type)){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='triangle';o.frequency.setValueAtTime(type==='bowl'?220:type==='soft'?330:440,n);g.gain.setValueAtTime(.28,n);g.gain.exponentialRampToValueAtTime(.001,n+2.5);o.start(n);o.stop(n+2.6)}}catch(e){}}
+function prevSound(el,type){document.querySelectorAll('.schip').forEach(c=>c.classList.remove('active-sound'));el.classList.add('active-sound');playSound(type)}
+
+// Task star toggle
+function toggleStar(btn){btn.classList.toggle('starred');btn.textContent=btn.classList.contains('starred')?'★':'☆'}
+
+// RRSS Timer
+function setRRSSMode(mins,btn){
+  document.querySelectorAll('#social-sheet .tmb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  S.rrssMode=mins;S.rrssCountUp=(mins===0);
+  clearInterval(S.rrssIv);S.rrssRunning=false;
+  S.rrssSecs=mins>0?mins*60:0;
+  updRRSS();
+  document.getElementById('rrss-start-ico').textContent='▶';
+  document.getElementById('rrss-start-lbl').textContent='Iniciar';
+  document.getElementById('rrss-sub').textContent=mins===0?'cronómetro':'límite de redes';
+}
+function updRRSS(){
+  const el=document.getElementById('rrss-display');if(!el)return;
+  const m=Math.floor(S.rrssSecs/60),s=S.rrssSecs%60;
+  el.textContent=pad(m)+':'+pad(s);
+  el.style.color=(!S.rrssCountUp&&S.rrssSecs<120)?'var(--red)':'var(--purple)';
+}
+function toggleRRSSTimer(){
+  if(S.rrssRunning){
+    clearInterval(S.rrssIv);S.rrssRunning=false;
+    document.getElementById('rrss-start-ico').textContent='▶';
+    document.getElementById('rrss-start-lbl').textContent='Iniciar';
+  }else{
+    S.rrssRunning=true;
+    document.getElementById('rrss-start-ico').textContent='⏸';
+    document.getElementById('rrss-start-lbl').textContent='Pausar';
+    S.rrssIv=setInterval(()=>{
+      if(S.rrssCountUp){S.rrssSecs++;updRRSS()}
+      else if(S.rrssSecs>0){S.rrssSecs--;updRRSS();if(S.rrssSecs===0){clearInterval(S.rrssIv);S.rrssRunning=false;playSound('bells');document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar'}}
+    },1000);
+  }
+}
+function resetRRSSTimer(){
+  clearInterval(S.rrssIv);S.rrssRunning=false;
+  S.rrssSecs=S.rrssCountUp?0:S.rrssMode*60;updRRSS();
+  document.getElementById('rrss-start-ico').textContent='▶';
+  document.getElementById('rrss-start-lbl').textContent='Iniciar';
+}
+
+function init(){showView('focus');updTimer();setInterval(showTip,25*60*1000);setTimeout(openMoodSheet,700)}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
