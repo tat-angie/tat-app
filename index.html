@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#5B2D8E">
 <title>TAT · Todo al mismo tiempo</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -116,7 +119,9 @@ input,textarea{font-family:var(--font)}
 .hbanner{background:linear-gradient(90deg,var(--yellow),#FFD600);border-radius:var(--r-md);margin:0 13px 9px;padding:10px 14px;display:none;align-items:center;gap:9px}
 .hbanner.on{display:flex}
 /* project rows */
-.prow{background:var(--white);border-radius:var(--r-lg);margin:0 13px 7px;display:flex;align-items:center;gap:11px;padding:11px 13px;box-shadow:var(--sh-s);cursor:pointer}
+.prow{background:var(--white);border-radius:var(--r-lg);margin:0 13px 7px;display:flex;align-items:center;gap:11px;padding:11px 13px;box-shadow:var(--sh-s);cursor:grab}
+.prow:active{cursor:grabbing}
+.prow[draggable="true"]:hover{box-shadow:var(--sh-m)}
 .pthumb{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .pinfo{flex:1;min-width:0}
 .pname{font-size:14px;font-weight:900;color:var(--g900)}
@@ -144,8 +149,8 @@ input,textarea{font-family:var(--font)}
 .tslbl{font-size:9px;font-weight:900;color:var(--g400);letter-spacing:.8px;text-transform:uppercase;padding:12px 13px 5px;display:flex;align-items:center;gap:8px}
 .tslbl .tslact{font-size:10px;font-weight:800;color:var(--purple);background:var(--pp);padding:3px 9px;border-radius:var(--r-f);cursor:pointer;letter-spacing:0;text-transform:none}
 /* task card */
-.tc{background:var(--white);border-radius:var(--r-lg);margin:0 13px 6px;display:flex;align-items:stretch;box-shadow:var(--sh-s);overflow:hidden;transition:box-shadow .12s}
-.tc:active{box-shadow:var(--sh-m)}
+.tc{background:var(--white);border-radius:var(--r-lg);margin:0 13px 6px;display:flex;align-items:stretch;box-shadow:var(--sh-s);overflow:hidden;transition:box-shadow .12s;cursor:grab}
+.tc:active{cursor:grabbing;box-shadow:var(--sh-m)}
 .tc-acc{width:4px;flex-shrink:0}
 .tc-th{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin:11px 0 11px 11px}
 .tc-body{flex:1;padding:11px 8px 11px 10px;min-width:0}
@@ -426,13 +431,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;heigh
 <section class="view" id="view-tareas">
   <div style="padding:11px 13px 0">
     <div class="ptabs" id="ptabs">
-      <div class="ptab active" onclick="switchTab(this,'hoy')">Hoy <span class="ptbadge">6</span></div>
-      <div class="ptab" onclick="switchTab(this,'solsticio')">☕ Solsticio <span class="ptbadge">4</span></div>
-      <div class="ptab" onclick="switchTab(this,'rrss')">💁🏽‍♀️ RRSS <span class="ptbadge">3</span></div>
-      <div class="ptab" onclick="switchTab(this,'onco')">🌻 OncoTrack <span class="ptbadge">3</span></div>
-      <div class="ptab" onclick="switchTab(this,'agencia')">🚀 Agencia</div>
-      <div class="ptab" onclick="switchTab(this,'mix')">✨ Mix</div>
-      <div class="ptab" onclick="switchTab(this,'tat')">💜 TAT</div>
+      <div class="ptab active" data-proj="hoy" onclick="switchTab(this,'hoy')">Hoy <span class="ptbadge">6</span></div>
+      <div class="ptab" data-proj="mix" onclick="switchTab(this,'mix')">✨ Mix</div>
+      <div class="ptab" data-proj="solsticio" onclick="switchTab(this,'solsticio')">☕ Solsticio <span class="ptbadge">4</span></div>
+      <div class="ptab" data-proj="rrss" onclick="switchTab(this,'rrss')">💁🏽‍♀️ RRSS <span class="ptbadge">3</span></div>
+      <div class="ptab" data-proj="onco" onclick="switchTab(this,'onco')">🌻 OncoTrack <span class="ptbadge">3</span></div>
+      <div class="ptab" data-proj="tat" onclick="switchTab(this,'tat')">💜 TAT</div>
     </div>
   </div>
 
@@ -1056,7 +1060,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;heigh
 const MOODS={'on-fire':{emoji:'🔥',label:'On fire',color:'var(--orange)',bg:'var(--ol)',title:'¡Estás On fire!',desc:'Aprovecha la energía — elige una tarea desafiante.',btn:'+ Modo energía alta'},'normal':{emoji:'🙂',label:'Normal',color:'var(--green)',bg:'var(--gl)',title:'Un día normal, ¡comencemos!',desc:'Tareas balanceadas — nada demasiado pesado ni liviano.',btn:'+ Modo equilibrado'},'dispersa':{emoji:'😶‍🌫️',label:'Dispersa',color:'#8B6AB5',bg:'var(--pg)',title:'Dispersa hoy…',desc:'Empieza con algo pequeño para entrar en ritmo.',btn:'+ Modo fácil'},'low':{emoji:'🪫',label:'Low battery',color:'var(--blue)',bg:'var(--bl)',title:'Low battery 🪫',desc:'Tareas cortas y concretas. Cada pequeña cosa cuenta.',btn:'+ Modo suave'}};
 const PROJ={mix:{n:'Mix',e:'✨',c:'var(--cmix)'},solsticio:{n:'Solsticio',e:'☕',c:'var(--csol)'},rrss:{n:'RRSS',e:'💁🏽‍♀️',c:'var(--crrss)'},onco:{n:'OncoTrack',e:'🌻',c:'var(--conco)'},agencia:{n:'Agencia',e:'🚀',c:'var(--cag)'},tat:{n:'TAT',e:'💜',c:'var(--ctat)'}};
 const TIPS=[{i:'🚶',t:'Llevas 90 min sentada — 5 minutos de caminar resetean el cerebro.'},{i:'💧',t:'Toma tu aguita — ¿cuántos vasos llevas hoy?'},{i:'🍎',t:'Un snack ahora te evita el bajón de las 3pm.'},{i:'☕',t:'No tomes café después de las 4pm.'},{i:'😮‍💨',t:'Pausa 60s — respira, los hombros para abajo.'}];
-const S={view:'focus',mood:'on-fire',mode:'pomodoro',running:false,secs:25*60,iv:null,cH:0,cM:45,hyper:false,moodShown:false,bannerTimer:null,rrssMode:15,rrssSecs:15*60,rrssRunning:false,rrssIv:null,rrssCountUp:false};
+const S={view:'focus',mood:'on-fire',mode:'pomodoro',running:false,secs:25*60,iv:null,cH:0,cM:45,hyper:false,moodShown:false,bannerTimer:null,rrssMode:15,rrssSecs:15*60,rrssRunning:false,rrssIv:null,rrssCountUp:false,dragTask:null,dragProj:null};
 
 (function(){const d=new Date(),D=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'],el=document.getElementById('date-b');if(el)el.textContent=D[d.getDay()]+' '+d.getDate()+' '+M[d.getMonth()]})();
 
@@ -1237,13 +1241,44 @@ function switchTab(el,key){
 function addTask(){
   const inp=document.getElementById('nti');if(!inp.value.trim())return;
   const list=document.getElementById('tlist');const id='tc-'+Date.now();
-  const card=document.createElement('div');card.className='tc';card.id=id;card.dataset.today='true';card.dataset.proj='solsticio';
-  card.innerHTML=`<div class="tc-acc" style="background:var(--csol)"></div><div class="tc-th" style="background:var(--yl)">☕</div><div class="tc-body"><div class="tc-name">${inp.value.trim()}</div><div class="tc-meta"><span class="tc-proj" style="color:var(--csol)">● Solsticio</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${inp.value.trim()}','Solsticio','–','var(--csol)')">▶</button><button class="tc-sched tc-sched-out" onclick="toggleToday('${id}',this)" title="Sacar de hoy">✕</button></div>`;
-  const todayLbl=document.getElementById('today-section-lbl');
-  if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
+  // Detect active tab to assign correct project
+  const activeTab=document.querySelector('.ptab.active');
+  const tabKey=activeTab?activeTab.dataset.proj||'hoy':'hoy';
+  // Pick project config; fallback to hoy→solsticio for "today" tasks
+  const projKeys=['mix','solsticio','rrss','onco','tat'];
+  const projKey=projKeys.includes(tabKey)?tabKey:'solsticio';
+  const p=PROJ[projKey]||{n:'Solsticio',e:'☕',c:'var(--csol)'};
+  const bgMap={mix:'#fce4ec',solsticio:'var(--yl)',rrss:'var(--gl)',onco:'var(--ol)',tat:'var(--pp)'};
+  const bg=bgMap[projKey]||'var(--yl)';
+  const isHoy=tabKey==='hoy';
+  const card=document.createElement('div');card.className='tc';card.id=id;
+  card.dataset.today=isHoy?'true':'false';
+  card.dataset.proj=projKey;
+  if(!isHoy)card.style.opacity='.72';
+  makeDraggable(card);
+  card.innerHTML=`<div class="tc-acc" style="background:${p.c}"></div><div class="tc-th" style="background:${bg};width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin:11px 0 11px 11px">${p.e}</div><div class="tc-body"><div class="tc-name">${inp.value.trim()}</div><div class="tc-meta"><span class="tc-proj" style="color:${p.c}">● ${p.n}</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${inp.value.trim()}','${p.n}','–','${p.c}')">▶</button><button class="tc-sched ${isHoy?'tc-sched-out':'tc-sched-in'}" onclick="toggleToday('${id}',this)" title="${isHoy?'Sacar de hoy':'Agregar a hoy'}">${isHoy?'✕':'+'}</button></div>`;
+  if(isHoy){
+    const todayLbl=document.getElementById('today-section-lbl');
+    if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
+    else list.prepend(card);
+  } else {
+    list.appendChild(card);
+  }
+  // re-apply current tab filter
+  switchTab(activeTab,tabKey);
   inp.value='';closeAddTask();playSound('check');
+  showToast('Tarea agregada a '+p.n+' '+p.e);
 }
-function goProj(k){showView('tareas')}
+function goProj(k){
+  showView('tareas');
+  // find and activate the tab matching the project
+  const tabs=document.querySelectorAll('.ptab');
+  tabs.forEach(t=>{
+    if(t.dataset.proj===k||(k==='onco'&&t.textContent.includes('OncoTrack'))||t.textContent.toLowerCase().includes(k)){
+      switchTab(t,k);
+    }
+  });
+}
 
 // ── IDEAS ──
 let currentIdeaCard=null;
@@ -1308,6 +1343,7 @@ function confirmProjPick(projKey,emoji,projName,color){
     const card=document.createElement('div');card.className='tc';card.id=id;card.dataset.today='false';card.dataset.proj=projKey;card.style.opacity='.72';
     card.innerHTML=`<div class="tc-acc" style="background:${color}"></div><div class="tc-th" style="font-size:18px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;margin:11px 0 11px 11px">${emoji}</div><div class="tc-body"><div class="tc-name">${title}</div><div class="tc-meta"><span class="tc-proj" style="color:${color}">● ${projName}</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${title}','${projName}','–','${color}')">▶</button><button class="tc-sched tc-sched-in" onclick="toggleToday('${id}',this)" title="Agregar a hoy">+</button></div>`;
     list.appendChild(card);
+    makeDraggable(card);
     showToast('¡Idea convertida en tarea de '+projName+'! ✅');
     // Mark idea as converted
     const acts=currentIdeaCard.querySelector('.ic-acts');
@@ -1419,8 +1455,36 @@ function resetRRSSTimer(){
   document.getElementById('rrss-start-lbl').textContent='Iniciar';
 }
 
-function init(){showView('focus');updTimer();setInterval(showTip,25*60*1000);setTimeout(openMoodSheet,700)}
+// ── DRAG & DROP — tasks ──
+function makeDraggable(el){
+  el.setAttribute('draggable','true');
+  el.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='move';S.dragTask=el;el.style.opacity='0.4'});
+  el.addEventListener('dragend',()=>{S.dragTask=null;el.style.opacity=el.dataset.today==='false'?'0.72':'1'});
+  el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
+  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragTask&&S.dragTask!==el){const par=el.parentNode;const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragTask);else el.insertAdjacentElement('beforebegin',S.dragTask)}});
+}
+// ── DRAG & DROP — projects ──
+function makeProjDraggable(el){
+  el.setAttribute('draggable','true');
+  el.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='move';S.dragProj=el;setTimeout(()=>el.style.opacity='0.4',0)});
+  el.addEventListener('dragend',()=>{S.dragProj=null;el.style.opacity='1'});
+  el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
+  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragProj&&S.dragProj!==el){const par=el.parentNode;const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragProj);else el.insertAdjacentElement('beforebegin',S.dragProj)}});
+}
+
+function init(){
+  showView('focus');updTimer();setInterval(showTip,25*60*1000);
+  // Mood: solo mostrar una vez por día
+  const today=new Date().toDateString();
+  const lastMood=localStorage.getItem('tat_mood_date');
+  if(lastMood!==today){setTimeout(()=>{openMoodSheet();localStorage.setItem('tat_mood_date',today)},700)}
+  // Enable drag on existing task cards
+  document.querySelectorAll('.tc').forEach(makeDraggable);
+  // Enable drag on existing project rows
+  document.querySelectorAll('.prow').forEach(makeProjDraggable);
+}
 document.addEventListener('DOMContentLoaded',init);
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
 </script>
 </body>
 </html>
