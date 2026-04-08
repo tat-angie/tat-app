@@ -1169,7 +1169,161 @@ function toggleHyper(){
   document.getElementById('hbtn').style.background=S.hyper?'var(--yellow)':'var(--yl)';
 }
 
-// Tasks
+// ══════════════════════════════════════════════
+// PERSISTENCIA — localStorage
+// ══════════════════════════════════════════════
+const DB_TASKS='tat_tasks_v1';
+const DB_IDEAS='tat_ideas_v1';
+const bgMap={mix:'#fce4ec',solsticio:'var(--yl)',rrss:'var(--gl)',onco:'var(--ol)',tat:'var(--pp)',agencia:'var(--bl)'};
+
+function dbLoadTasks(){try{return JSON.parse(localStorage.getItem(DB_TASKS)||'[]')}catch{return[]}}
+function dbSaveTasks(){
+  const tasks=[];
+  document.querySelectorAll('#tlist .tc').forEach(c=>{
+    const nameEl=c.querySelector('.tc-name');
+    const projEl=c.querySelector('.tc-proj');
+    const cbEl=c.querySelector('.tc-cb');
+    const starEl=c.querySelector('.tc-star');
+    const timeEl=c.querySelector('.tc-time');
+    if(!nameEl)return;
+    tasks.push({
+      id:c.id,
+      name:nameEl.textContent,
+      proj:c.dataset.proj||'solsticio',
+      today:c.dataset.today==='true',
+      done:cbEl?cbEl.classList.contains('done'):false,
+      starred:starEl?starEl.classList.contains('starred'):false,
+      time:timeEl?timeEl.textContent:''
+    });
+  });
+  localStorage.setItem(DB_TASKS,JSON.stringify(tasks));
+}
+function dbLoadIdeas(){try{return JSON.parse(localStorage.getItem(DB_IDEAS)||'[]')}catch{return[]}}
+function dbSaveIdeas(){
+  const ideas=[];
+  document.querySelectorAll('#ideas-list .idea-card').forEach(c=>{
+    const titleEl=c.querySelector('.ic-title');
+    const starEl=c.querySelector('.ic-star');
+    const dateEl=c.querySelector('.ic-date');
+    const tagEl=c.querySelector('.ic-ptag');
+    const convEl=c.querySelector('.ic-acts div[style*="green"]');
+    if(!titleEl)return;
+    ideas.push({
+      id:c.dataset.ideaId||('idea-'+Date.now()+Math.random()),
+      title:titleEl.textContent,
+      proj:c.dataset.ideaProj||'',
+      starred:starEl?starEl.classList.contains('starred'):false,
+      date:dateEl?dateEl.textContent:'hoy',
+      tagText:tagEl?tagEl.textContent:'+ Asignar proyecto',
+      tagAsgn:tagEl?tagEl.classList.contains('asgn'):false,
+      converted:!!convEl,
+      convertedText:convEl?convEl.textContent:''
+    });
+  });
+  localStorage.setItem(DB_IDEAS,JSON.stringify(ideas));
+}
+
+// Render a task card from saved data
+function renderTaskCard(t){
+  const id=t.id||('tc-'+Date.now()+Math.random());
+  const projKey=t.proj||'solsticio';
+  const p=PROJ[projKey]||{n:'Solsticio',e:'☕',c:'var(--csol)'};
+  const bg=bgMap[projKey]||'var(--yl)';
+  const card=document.createElement('div');
+  card.className='tc';card.id=id;
+  card.dataset.proj=projKey;
+  card.dataset.today=t.today?'true':'false';
+  if(!t.today)card.style.opacity='.72';
+  if(t.done)card.style.opacity='.6';
+  makeDraggable(card);
+  const timeHtml=t.time?`<span class="tc-time">${t.time}</span>`:'';
+  const doneClass=t.done?'done':'';
+  card.innerHTML=`<div class="tc-acc" style="background:${p.c}"></div>`+
+    `<div class="tc-th" style="background:${bg};width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin:11px 0 11px 11px">${p.e}</div>`+
+    `<div class="tc-body"><div class="tc-name ${doneClass}">${t.name}</div>`+
+    `<div class="tc-meta"><span class="tc-proj" style="color:${p.c}">● ${p.n}</span>${timeHtml}<button class="tc-star${t.starred?' starred':''}" onclick="toggleStar(this);dbSaveTasks()">${t.starred?'★':'☆'}</button></div></div>`+
+    `<div class="tc-acts"><div class="tc-cb${t.done?' done':''}" onclick="chkTask(this,'${id}')">${t.done?'✓':''}</div>`+
+    `<button class="tc-play" onclick="startTask('${t.name.replace(/'/g,"\\'")}','${p.n}','–','${p.c}')">▶</button>`+
+    `<button class="tc-sched ${t.today?'tc-sched-out':'tc-sched-in'}" onclick="toggleToday('${id}',this)" title="${t.today?'Sacar de hoy':'Agregar a hoy'}">${t.today?'✕':'+'}</button></div>`;
+  return card;
+}
+
+// Render an idea card from saved data
+function renderIdeaCard(idea){
+  const card=document.createElement('div');
+  card.className='idea-card';
+  card.dataset.ideaProj=idea.proj||'';
+  card.dataset.ideaId=idea.id;
+  const tagClass=idea.tagAsgn?'ic-ptag asgn':'ic-ptag';
+  if(idea.converted){
+    card.innerHTML=`<div class="ic-top"><div class="ic-title">${idea.title}</div><div class="ic-star${idea.starred?' starred':''}" onclick="tStar(this)">${idea.starred?'★':'☆'}</div></div>`+
+      `<div class="ic-meta"><span class="ic-date">${idea.date}</span><div class="${tagClass}" onclick="openProjPicker(this)">${idea.tagText}</div></div>`+
+      `<div style="padding:7px 13px;font-size:10px;font-weight:800;color:var(--green);background:var(--gl);text-align:center">${idea.convertedText}</div>`;
+  } else {
+    card.innerHTML=`<div class="ic-top"><div class="ic-title">${idea.title}</div><div class="ic-star${idea.starred?' starred':''}" onclick="tStar(this)">${idea.starred?'★':'☆'}</div></div>`+
+      `<div class="ic-meta"><span class="ic-date">${idea.date}</span><div class="${tagClass}" onclick="openProjPicker(this)">${idea.tagText}</div></div>`+
+      `<div class="ic-acts"><button class="iab" onclick="ideaToTask(this)">→ Tarea</button><button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button><button class="iab" onclick="editIdea(this)">✏️ Editar</button><button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button></div>`;
+  }
+  return card;
+}
+
+// Load saved tasks into DOM (only NEW ones — ones without static HTML id)
+function loadSavedTasks(){
+  const saved=dbLoadTasks();
+  const staticIds=new Set(['tc-1','tc-2','tc-3','tc-4','tc-5','tc-6','tc-7','tc-8']);
+  // Update static tasks from saved state
+  saved.forEach(t=>{
+    if(staticIds.has(t.id)){
+      const card=document.getElementById(t.id);
+      if(!card)return;
+      card.dataset.today=t.today?'true':'false';
+      card.style.opacity=t.done?'.6':t.today?'1':'.72';
+      const nm=card.querySelector('.tc-name');if(nm){nm.classList.toggle('done',t.done)}
+      const cb=card.querySelector('.tc-cb');if(cb){cb.classList.toggle('done',t.done);cb.textContent=t.done?'✓':''}
+      const st=card.querySelector('.tc-star');if(st){st.classList.toggle('starred',t.starred);st.textContent=t.starred?'★':'☆'}
+      const sched=card.querySelector('.tc-sched');
+      if(sched){sched.className='tc-sched '+(t.today?'tc-sched-out':'tc-sched-in');sched.textContent=t.today?'✕':'+';sched.title=t.today?'Sacar de hoy':'Agregar a hoy';}
+    }
+  });
+  // Append dynamic tasks
+  const list=document.getElementById('tlist');
+  const otrasLbl=document.getElementById('otras-section-lbl');
+  saved.filter(t=>!staticIds.has(t.id)).forEach(t=>{
+    if(document.getElementById(t.id))return; // already in DOM
+    const card=renderTaskCard(t);
+    if(t.today){
+      const todayLbl=document.getElementById('today-section-lbl');
+      if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
+      else list.prepend(card);
+    } else {
+      list.appendChild(card);
+    }
+  });
+}
+
+// Load saved ideas into DOM
+function loadSavedIdeas(){
+  const saved=dbLoadIdeas();
+  if(!saved.length)return;
+  const staticIds=new Set(['idea-static-1','idea-static-2','idea-static-3','idea-static-4','idea-static-5']);
+  const list=document.getElementById('ideas-list');
+  // Clear existing static demo ideas and replace with saved
+  list.innerHTML='';
+  saved.forEach(idea=>{
+    list.appendChild(renderIdeaCard(idea));
+  });
+  // Update badge
+  updateIdeaBadge();
+}
+
+function updateIdeaBadge(){
+  const n=document.querySelectorAll('#ideas-list .idea-card').length;
+  const b=document.getElementById('icbadge');if(b)b.textContent=n+' idea'+(n===1?'':'s');
+}
+
+// ══════════════════════════════════════════════
+// TASKS — funciones
+// ══════════════════════════════════════════════
 function startTask(name,proj,dur,color){
   document.getElementById('atask-name').textContent=name;
   document.getElementById('atask-proj').textContent='● '+proj;
@@ -1183,23 +1337,21 @@ function chkTask(cb,id){
   const card=document.getElementById(id);
   if(card){
     if(cb.classList.contains('done')){
-      cb.textContent='✓';
-      card.style.opacity='.6';
-      // Add done date
+      cb.textContent='✓';card.style.opacity='.6';
       let dd=nm.parentElement.querySelector('.tc-done-date');
       if(!dd){dd=document.createElement('div');dd.className='tc-done-date';nm.parentElement.appendChild(dd)}
       const now=new Date();dd.textContent='✓ Completada el '+now.getDate()+'/'+(now.getMonth()+1)+' a las '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
       playSound('check');
-    } else {
-      cb.textContent='';card.style.opacity='1';
+    }else{
+      cb.textContent='';card.style.opacity=card.dataset.today==='false'?'.72':'1';
       const dd=nm.parentElement.querySelector('.tc-done-date');if(dd)dd.remove();
     }
   }
+  dbSaveTasks();
 }
 function schedTask(id){toggleToday(id,document.querySelector('#'+id+' .tc-sched'))}
 function sortTasks(){}
 
-// toggleToday: moves task in/out of "hoy" tab
 function toggleToday(id,btn){
   const card=document.getElementById(id);if(!card)return;
   const isToday=card.dataset.today==='true';
@@ -1216,6 +1368,7 @@ function toggleToday(id,btn){
     if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
     showToast('¡Tarea agregada a hoy! ✅');
   }
+  dbSaveTasks();
 }
 
 function showToast(msg){
@@ -1225,7 +1378,6 @@ function showToast(msg){
   clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0'},2200);
 }
 
-// Tasks tab filter
 function switchTab(el,key){
   document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
   document.querySelectorAll('.tc').forEach(tc=>{
@@ -1238,25 +1390,19 @@ function switchTab(el,key){
   const at=document.getElementById('add-tc-t');
   if(at){if(key==='hoy')at.textContent='Nueva tarea';else{const p=PROJ[key];if(p)at.textContent='Nueva tarea en '+p.e+' '+p.n}}
 }
+
 function addTask(){
   const inp=document.getElementById('nti');if(!inp.value.trim())return;
-  const list=document.getElementById('tlist');const id='tc-'+Date.now();
-  // Detect active tab to assign correct project
+  const list=document.getElementById('tlist');
+  const id='tc-'+Date.now();
   const activeTab=document.querySelector('.ptab.active');
   const tabKey=activeTab?activeTab.dataset.proj||'hoy':'hoy';
-  // Pick project config; fallback to hoy→solsticio for "today" tasks
   const projKeys=['mix','solsticio','rrss','onco','tat'];
   const projKey=projKeys.includes(tabKey)?tabKey:'solsticio';
   const p=PROJ[projKey]||{n:'Solsticio',e:'☕',c:'var(--csol)'};
-  const bgMap={mix:'#fce4ec',solsticio:'var(--yl)',rrss:'var(--gl)',onco:'var(--ol)',tat:'var(--pp)'};
-  const bg=bgMap[projKey]||'var(--yl)';
   const isHoy=tabKey==='hoy';
-  const card=document.createElement('div');card.className='tc';card.id=id;
-  card.dataset.today=isHoy?'true':'false';
-  card.dataset.proj=projKey;
-  if(!isHoy)card.style.opacity='.72';
-  makeDraggable(card);
-  card.innerHTML=`<div class="tc-acc" style="background:${p.c}"></div><div class="tc-th" style="background:${bg};width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin:11px 0 11px 11px">${p.e}</div><div class="tc-body"><div class="tc-name">${inp.value.trim()}</div><div class="tc-meta"><span class="tc-proj" style="color:${p.c}">● ${p.n}</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${inp.value.trim()}','${p.n}','–','${p.c}')">▶</button><button class="tc-sched ${isHoy?'tc-sched-out':'tc-sched-in'}" onclick="toggleToday('${id}',this)" title="${isHoy?'Sacar de hoy':'Agregar a hoy'}">${isHoy?'✕':'+'}</button></div>`;
+  const taskData={id,name:inp.value.trim(),proj:projKey,today:isHoy,done:false,starred:false,time:''};
+  const card=renderTaskCard(taskData);
   if(isHoy){
     const todayLbl=document.getElementById('today-section-lbl');
     if(todayLbl)todayLbl.insertAdjacentElement('afterend',card);
@@ -1264,23 +1410,22 @@ function addTask(){
   } else {
     list.appendChild(card);
   }
-  // re-apply current tab filter
   switchTab(activeTab,tabKey);
   inp.value='';closeAddTask();playSound('check');
   showToast('Tarea agregada a '+p.n+' '+p.e);
+  dbSaveTasks();
 }
+
 function goProj(k){
   showView('tareas');
-  // find and activate the tab matching the project
-  const tabs=document.querySelectorAll('.ptab');
-  tabs.forEach(t=>{
-    if(t.dataset.proj===k||(k==='onco'&&t.textContent.includes('OncoTrack'))||t.textContent.toLowerCase().includes(k)){
-      switchTab(t,k);
-    }
+  document.querySelectorAll('.ptab').forEach(t=>{
+    if(t.dataset.proj===k)switchTab(t,k);
   });
 }
 
-// ── IDEAS ──
+// ══════════════════════════════════════════════
+// IDEAS — funciones
+// ══════════════════════════════════════════════
 let currentIdeaCard=null;
 
 function fIdeas(el,filter){
@@ -1294,36 +1439,33 @@ function fIdeas(el,filter){
   });
 }
 
-function tStar(el){el.classList.toggle('starred');el.textContent=el.classList.contains('starred')?'★':'☆'}
+function tStar(el){
+  el.classList.toggle('starred');el.textContent=el.classList.contains('starred')?'★':'☆';
+  dbSaveIdeas();
+}
 
 function delIdea(btn){
   const c=btn.closest('.idea-card');
   c.style.transition='all .18s';c.style.opacity='0';c.style.transform='scale(.95)';
-  setTimeout(()=>c.remove(),200);
+  setTimeout(()=>{c.remove();dbSaveIdeas();updateIdeaBadge()},200);
 }
 
-// → Tarea: opens project picker to choose which project's task list to add to
 function ideaToTask(btn){
   currentIdeaCard=btn.closest('.idea-card');
-  S.currentIdeaBtn=btn;
-  S.ideaMode='task';
+  S.currentIdeaBtn=btn;S.ideaMode='task';
   document.getElementById('projpick-title').textContent='Convertir en tarea de…';
   openSheet('projpick');
 }
 
-// 📁 Nuevo proyecto: opens new project sheet
 function ideaToNewProj(btn){
   currentIdeaCard=btn?btn.closest('.idea-card'):currentIdeaCard;
-  S.ideaMode='newproj';
-  closeSheet('projpick');
+  S.ideaMode='newproj';closeSheet('projpick');
   setTimeout(()=>openSheet('newproj'),200);
 }
 
-// Assign project tag without converting to task
 function openProjPicker(tagEl){
   currentIdeaCard=tagEl.closest('.idea-card');
-  S.currentIdeaBtn=tagEl;
-  S.ideaMode='assign';
+  S.currentIdeaBtn=tagEl;S.ideaMode='assign';
   document.getElementById('projpick-title').textContent='Asignar a proyecto…';
   openSheet('projpick');
 }
@@ -1331,30 +1473,26 @@ function closeProjPicker(){closeSheet('projpick')}
 
 function confirmProjPick(projKey,emoji,projName,color){
   if(!currentIdeaCard)return;
-  // Update tag in idea card
   const tag=currentIdeaCard.querySelector('.ic-ptag');
   if(tag){tag.textContent=emoji+' '+projName;tag.classList.add('asgn')}
   currentIdeaCard.dataset.ideaProj=projKey;
-
   if(S.ideaMode==='task'){
-    // Also add as task in that project
     const title=currentIdeaCard.querySelector('.ic-title').textContent;
-    const list=document.getElementById('tlist');const id='tc-idea-'+Date.now();
-    const card=document.createElement('div');card.className='tc';card.id=id;card.dataset.today='false';card.dataset.proj=projKey;card.style.opacity='.72';
-    card.innerHTML=`<div class="tc-acc" style="background:${color}"></div><div class="tc-th" style="font-size:18px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;margin:11px 0 11px 11px">${emoji}</div><div class="tc-body"><div class="tc-name">${title}</div><div class="tc-meta"><span class="tc-proj" style="color:${color}">● ${projName}</span><button class="tc-star" onclick="toggleStar(this)">☆</button></div></div><div class="tc-acts"><div class="tc-cb" onclick="chkTask(this,'${id}')"></div><button class="tc-play" onclick="startTask('${title}','${projName}','–','${color}')">▶</button><button class="tc-sched tc-sched-in" onclick="toggleToday('${id}',this)" title="Agregar a hoy">+</button></div>`;
-    list.appendChild(card);
-    makeDraggable(card);
+    const id='tc-idea-'+Date.now();
+    const taskData={id,name:title,proj:projKey,today:false,done:false,starred:false,time:''};
+    const card=renderTaskCard(taskData);
+    document.getElementById('tlist').appendChild(card);
     showToast('¡Idea convertida en tarea de '+projName+'! ✅');
-    // Mark idea as converted
     const acts=currentIdeaCard.querySelector('.ic-acts');
     if(acts){const lbl=document.createElement('div');lbl.style.cssText='padding:7px 13px;font-size:10px;font-weight:800;color:var(--green);background:var(--gl);text-align:center';lbl.textContent='✓ Convertida en tarea de '+projName;acts.replaceWith(lbl)}
+    dbSaveTasks();
   }else{
     showToast('Proyecto asignado: '+projName+' '+emoji);
   }
   closeProjPicker();
+  dbSaveIdeas();
 }
 
-// Edit idea
 function editIdea(btn){
   currentIdeaCard=btn.closest('.idea-card');
   const title=currentIdeaCard.querySelector('.ic-title').textContent;
@@ -1367,9 +1505,9 @@ function saveEditIdea(){
   if(!inp.value.trim()||!currentIdeaCard)return;
   currentIdeaCard.querySelector('.ic-title').textContent=inp.value.trim();
   closeEditIdea();showToast('Idea actualizada ✏️');
+  dbSaveIdeas();
 }
 
-// New project from idea
 function closeNewProj(){closeSheet('newproj')}
 function selEmoji(el){document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('sel-emoji'));el.classList.add('sel-emoji')}
 function confirmNewProj(){
@@ -1378,90 +1516,60 @@ function confirmNewProj(){
   if(!name)return;
   showToast('¡Proyecto "'+name+'" creado! '+emoji);
   closeNewProj();
-  if(currentIdeaCard){
-    const tag=currentIdeaCard.querySelector('.ic-ptag');
-    if(tag){tag.textContent=emoji+' '+name;tag.classList.add('asgn')}
-  }
+  if(currentIdeaCard){const tag=currentIdeaCard.querySelector('.ic-ptag');if(tag){tag.textContent=emoji+' '+name;tag.classList.add('asgn')}}
   document.getElementById('newproj-name').value='';
+  dbSaveIdeas();
 }
 
-// Save new idea from notepad
 function saveIdea(){
   const inp=document.getElementById('iinput');if(!inp.value.trim())return;
   const list=document.getElementById('ideas-list');
-  const card=document.createElement('div');card.className='idea-card';card.dataset.ideaProj='';
-  const txt=inp.value.trim().split('\n')[0].slice(0,80);
   const id='idea-'+Date.now();
-  card.innerHTML=`<div class="ic-top"><div class="ic-title">${txt}</div><div class="ic-star" onclick="tStar(this)">☆</div></div><div class="ic-meta"><span class="ic-date">ahora</span><div class="ic-ptag" onclick="openProjPicker(this)">+ Asignar proyecto</div></div><div class="ic-acts"><button class="iab" onclick="ideaToTask(this)">→ Tarea</button><button class="iab" onclick="ideaToNewProj(this)">📁 Nuevo proyecto</button><button class="iab" onclick="editIdea(this)">✏️ Editar</button><button class="iab red" onclick="delIdea(this)"><div class="iab-del">🗑</div></button></div>`;
-  list.prepend(card);inp.value='';closeNotepad();playSound('check');
+  const txt=inp.value.trim().split('\n')[0].slice(0,80);
+  const ideaData={id,title:txt,proj:'',starred:false,date:'ahora',tagText:'+ Asignar proyecto',tagAsgn:false,converted:false,convertedText:''};
+  const card=renderIdeaCard(ideaData);
+  card.dataset.ideaId=id;
+  list.prepend(card);
+  inp.value='';closeNotepad();playSound('check');
+  updateIdeaBadge();
+  dbSaveIdeas();
 }
 
-// Resumen tab
+// ══════════════════════════════════════════════
+// MISC
+// ══════════════════════════════════════════════
 function rTab(el){el.closest('div').querySelectorAll('.iftab').forEach(b=>{b.classList.remove('active');b.classList.add('inactive')});el.classList.remove('inactive');el.classList.add('active')}
-
-// Done
 function doneAct(a){closeDone();if(a==='pause')setTimeout(openBreak,300);if(a==='switch')setTimeout(()=>showView('tareas'),300);if(a==='completed')playSound('complete')}
 function setBreak(m){const el=document.querySelector('#break-sheet div[style*="36px"]');if(el)el.textContent=m+':00'}
-
-// Tips
 function showTip(){const t=TIPS[Math.floor(Math.random()*TIPS.length)];const c=document.getElementById('tip-card');if(!c)return;document.getElementById('tip-ico').textContent=t.i;document.getElementById('tip-txt').textContent=t.t;c.style.display='flex'}
 
-// Sounds
 const ACtx=window.AudioContext||window.webkitAudioContext;let actx;
 function gCtx(){if(!actx)actx=new ACtx();return actx}
 function playSound(type){try{const ctx=gCtx(),n=ctx.currentTime;if(type==='check'){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,n);o.frequency.exponentialRampToValueAtTime(440,n+.15);g.gain.setValueAtTime(.2,n);g.gain.exponentialRampToValueAtTime(.001,n+.2);o.start(n);o.stop(n+.2)}else if(type==='start'){[440,550,660].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(f,n+i*.12);g.gain.setValueAtTime(.16,n+i*.12);g.gain.exponentialRampToValueAtTime(.001,n+i*.12+.4);o.start(n+i*.12);o.stop(n+i*.12+.4)})}else if(type==='complete'){[523,659,784,1046].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(f,n+i*.1);g.gain.setValueAtTime(.14,n+i*.1);g.gain.exponentialRampToValueAtTime(.001,n+i*.1+.5);o.start(n+i*.1);o.stop(n+i*.1+.5)})}else if(['bells','bowl','chime','soft'].includes(type)){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='triangle';o.frequency.setValueAtTime(type==='bowl'?220:type==='soft'?330:440,n);g.gain.setValueAtTime(.28,n);g.gain.exponentialRampToValueAtTime(.001,n+2.5);o.start(n);o.stop(n+2.6)}}catch(e){}}
 function prevSound(el,type){document.querySelectorAll('.schip').forEach(c=>c.classList.remove('active-sound'));el.classList.add('active-sound');playSound(type)}
-
-// Task star toggle
 function toggleStar(btn){btn.classList.toggle('starred');btn.textContent=btn.classList.contains('starred')?'★':'☆'}
 
-// RRSS Timer
 function setRRSSMode(mins,btn){
   document.querySelectorAll('#social-sheet .tmb').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  S.rrssMode=mins;S.rrssCountUp=(mins===0);
-  clearInterval(S.rrssIv);S.rrssRunning=false;
-  S.rrssSecs=mins>0?mins*60:0;
-  updRRSS();
-  document.getElementById('rrss-start-ico').textContent='▶';
-  document.getElementById('rrss-start-lbl').textContent='Iniciar';
+  btn.classList.add('active');S.rrssMode=mins;S.rrssCountUp=(mins===0);
+  clearInterval(S.rrssIv);S.rrssRunning=false;S.rrssSecs=mins>0?mins*60:0;updRRSS();
+  document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar';
   document.getElementById('rrss-sub').textContent=mins===0?'cronómetro':'límite de redes';
 }
-function updRRSS(){
-  const el=document.getElementById('rrss-display');if(!el)return;
-  const m=Math.floor(S.rrssSecs/60),s=S.rrssSecs%60;
-  el.textContent=pad(m)+':'+pad(s);
-  el.style.color=(!S.rrssCountUp&&S.rrssSecs<120)?'var(--red)':'var(--purple)';
-}
+function updRRSS(){const el=document.getElementById('rrss-display');if(!el)return;const m=Math.floor(S.rrssSecs/60),s=S.rrssSecs%60;el.textContent=pad(m)+':'+pad(s);el.style.color=(!S.rrssCountUp&&S.rrssSecs<120)?'var(--red)':'var(--purple)';}
 function toggleRRSSTimer(){
-  if(S.rrssRunning){
-    clearInterval(S.rrssIv);S.rrssRunning=false;
-    document.getElementById('rrss-start-ico').textContent='▶';
-    document.getElementById('rrss-start-lbl').textContent='Iniciar';
-  }else{
-    S.rrssRunning=true;
-    document.getElementById('rrss-start-ico').textContent='⏸';
-    document.getElementById('rrss-start-lbl').textContent='Pausar';
-    S.rrssIv=setInterval(()=>{
-      if(S.rrssCountUp){S.rrssSecs++;updRRSS()}
-      else if(S.rrssSecs>0){S.rrssSecs--;updRRSS();if(S.rrssSecs===0){clearInterval(S.rrssIv);S.rrssRunning=false;playSound('bells');document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar'}}
-    },1000);
-  }
+  if(S.rrssRunning){clearInterval(S.rrssIv);S.rrssRunning=false;document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar';}
+  else{S.rrssRunning=true;document.getElementById('rrss-start-ico').textContent='⏸';document.getElementById('rrss-start-lbl').textContent='Pausar';S.rrssIv=setInterval(()=>{if(S.rrssCountUp){S.rrssSecs++;updRRSS()}else if(S.rrssSecs>0){S.rrssSecs--;updRRSS();if(S.rrssSecs===0){clearInterval(S.rrssIv);S.rrssRunning=false;playSound('bells');document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar'}}},1000);}
 }
-function resetRRSSTimer(){
-  clearInterval(S.rrssIv);S.rrssRunning=false;
-  S.rrssSecs=S.rrssCountUp?0:S.rrssMode*60;updRRSS();
-  document.getElementById('rrss-start-ico').textContent='▶';
-  document.getElementById('rrss-start-lbl').textContent='Iniciar';
-}
+function resetRRSSTimer(){clearInterval(S.rrssIv);S.rrssRunning=false;S.rrssSecs=S.rrssCountUp?0:S.rrssMode*60;updRRSS();document.getElementById('rrss-start-ico').textContent='▶';document.getElementById('rrss-start-lbl').textContent='Iniciar';}
 
 // ── DRAG & DROP — tasks ──
 function makeDraggable(el){
   el.setAttribute('draggable','true');
   el.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='move';S.dragTask=el;el.style.opacity='0.4'});
-  el.addEventListener('dragend',()=>{S.dragTask=null;el.style.opacity=el.dataset.today==='false'?'0.72':'1'});
+  el.addEventListener('dragend',()=>{S.dragTask=null;el.style.opacity=el.dataset.today==='false'?'0.72':'1';dbSaveTasks()});
   el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
-  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragTask&&S.dragTask!==el){const par=el.parentNode;const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragTask);else el.insertAdjacentElement('beforebegin',S.dragTask)}});
+  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragTask&&S.dragTask!==el){const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragTask);else el.insertAdjacentElement('beforebegin',S.dragTask)}});
 }
 // ── DRAG & DROP — projects ──
 function makeProjDraggable(el){
@@ -1469,19 +1577,34 @@ function makeProjDraggable(el){
   el.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='move';S.dragProj=el;setTimeout(()=>el.style.opacity='0.4',0)});
   el.addEventListener('dragend',()=>{S.dragProj=null;el.style.opacity='1'});
   el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move'});
-  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragProj&&S.dragProj!==el){const par=el.parentNode;const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragProj);else el.insertAdjacentElement('beforebegin',S.dragProj)}});
+  el.addEventListener('drop',e=>{e.preventDefault();if(S.dragProj&&S.dragProj!==el){const after=e.clientY>el.getBoundingClientRect().top+el.offsetHeight/2;if(after)el.insertAdjacentElement('afterend',S.dragProj);else el.insertAdjacentElement('beforebegin',S.dragProj)}});
 }
 
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
 function init(){
   showView('focus');updTimer();setInterval(showTip,25*60*1000);
-  // Mood: solo mostrar una vez por día
+  // Mood: solo una vez por día
   const today=new Date().toDateString();
   const lastMood=localStorage.getItem('tat_mood_date');
   if(lastMood!==today){setTimeout(()=>{openMoodSheet();localStorage.setItem('tat_mood_date',today)},700)}
-  // Enable drag on existing task cards
+  // Drag en proyectos y tareas estáticas
   document.querySelectorAll('.tc').forEach(makeDraggable);
-  // Enable drag on existing project rows
   document.querySelectorAll('.prow').forEach(makeProjDraggable);
+  // Cargar datos persistidos
+  loadSavedTasks();
+  loadSavedIdeas();
+  // Guardar estado de tareas estáticas al hacer cambios
+  // (snapshot inicial para que las tareas demo también queden guardadas)
+  const hasSaved=localStorage.getItem(DB_TASKS);
+  if(!hasSaved){
+    setTimeout(dbSaveTasks,300); // snapshot demo tasks
+  }
+  const hasSavedIdeas=localStorage.getItem(DB_IDEAS);
+  if(!hasSavedIdeas){
+    setTimeout(dbSaveIdeas,300); // snapshot demo ideas
+  }
 }
 document.addEventListener('DOMContentLoaded',init);
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
